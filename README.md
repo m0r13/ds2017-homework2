@@ -1,6 +1,6 @@
 # Project for Distributed system class 2017
 
-##Students
+## Students
 - Shahla Atapoor
 - Sander Mikelsaar
 - Moritz Hilscher
