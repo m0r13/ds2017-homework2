@@ -1,0 +1,37 @@
+Client -> <- Server
+
+Connection:
+-> hello (username)
+
+Get list of sessions:
+-> get_sessions()
+<- sessions((id, current/maximum number of players), ...)
+
+Join existing session:
+-> join_session(id)
+<- session_joined(id)
+
+OR
+Create new session:
+-> create_session(number of players)
+<- session_joined(id)
+
+When session is joined:
+<- game_started()
+<- sudoku_state(sudoku)
+<- scores_state((player_name, points), ...)
+
+When player wants to suggest a number:
+-> suggest_number(position, number)
+<- sudoku_state(sudoku)
+<- scores_state((player_name, points), ...)
+
+When another player has suggested a number:
+<- sudoku_state(sudoku)
+<- scores_state((player_name, points), ...)
+
+When a player wants to leave:
+-> leave_session()
+
+When all players have left except one / sudoku is finished:
+<- game_over(winner)
