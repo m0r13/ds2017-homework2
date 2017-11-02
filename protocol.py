@@ -1,4 +1,5 @@
-
+SERVER_INET_ADDR = 127.0.0.1
+SERVER_PORT = 8888
 PKG_CREATE_SESSION = 42
 
 def read_int(stream):
