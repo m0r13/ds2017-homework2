@@ -1,5 +1,7 @@
 SERVER_INET_ADDR = "127.0.0.1"
 SERVER_PORT = 8888
+TCP_RECEIVE_BUFFER_SIZE = 1024
+
 PKG_CREATE_SESSION = 42
 
 def read_int(stream):
@@ -11,6 +13,7 @@ def read_string(stream):
     return ""
 
 def write_int(stream, value):
+    pass
     # ...
 
 def write_string(stream, value):
