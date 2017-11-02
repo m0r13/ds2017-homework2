@@ -2,6 +2,7 @@ Client -> <- Server
 
 Connection:
 -> hello (username)
+<- ack(?)
 
 Get list of sessions:
 -> get_sessions()
@@ -23,6 +24,7 @@ When session is joined:
 
 When player wants to suggest a number:
 -> suggest_number(position, number)
+<- ack(?)
 <- sudoku_state(sudoku)
 <- scores_state((player_name, points), ...)
 
@@ -35,3 +37,4 @@ When a player wants to leave:
 
 When all players have left except one / sudoku is finished:
 <- game_over(winner)
+
