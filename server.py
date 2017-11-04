@@ -13,30 +13,38 @@ class Game():
    
    def __init__(self, number_player, username):
         self.__number_player = number_player
-        self.__session_id = str(uuid.uuid4())
+        self.__uuid = str(uuid.uuid4())
         self.__sudoku = Sudoku()
         self.__users = {username : 0} # username: score
     
     
     def join_game(self, username):
-        self.__users[username] = 0
+        __users[username] = 0
     
+    def get_uuid(self):
+        return __uuid
     
     def get_sudoku_state(self):
-        pass
+        return __sudoku.get_grid()
     
     
     def get_scores_state(self):
-        pass
+        return __users
         
     
     def insert_number(self, username, number, coordinate):
-        point, finish = self.__Sudoku.insert(number, coordinate)
-        self.__users[username] += point
+        point, finish = __sudoku.insert(number, coordinate)
+        __users[username] += point
+        
+        if finish:
+            #...
+            pass
+        
     
     def leave_game(self, username)
-        pass
-       
+        score = self.__users[username]
+        del self.__users[username]
+        return username, score
         
         
         
@@ -46,24 +54,36 @@ class ClientThread(threading.Thread):
         threading.Thread.__init__(self)
         self.__socket = client_socket
         self.__address = client_address
-        
-    def run(self):
+        self.__game = None
+    
+    def run(self): # Dispatch cases
         while True:
-            data = read_package(self.__client_socket)
+            data = read_package(__client_socket)
+            if data['pkg_type'] == PKG_CREATE_SESSION:
+                __game = games GAME(data['number_player'], data['username'])
+                write_package(__socket, __game.get_uuid())
+            elif data['pkg_type'] == PKG_GET_SESSION:
+                # sessions = ...
+                # write_package(__socket, sessions)
+                pass
+            elif data['pkg_type'] == PKG_JOIN_SESSION:
+                __game.join_game(data['username'])
+                # write_package(__socket, )
+            elif data['pkg_type'] == PKG_LEAVE_SESSION:
+                __game.leave_game(data['username'])
+                # write_package(__socket, )
+            elif data['pkg_type'] == PKG_SUGGEST_NUMBER:
+                pass
             
-            # Dispatch cases to handler 
-    
-    
-    
-    
+            
+      
     def join(self):
-        self.__client_socket.close()
+        __client_socket.close()
         print "The client %s closed its connection" % client_address
 
 if __name__ == '__main__':
     
     clients = []   
-    
     s = socket(AF_INET, SOCK_STREAM)
     s.bind((SERVER_INET_ADDR, SERVER_PORT))
 

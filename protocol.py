@@ -2,7 +2,12 @@ SERVER_INET_ADDR = "127.0.0.1"
 SERVER_PORT = 8888
 TCP_RECEIVE_BUFFER_SIZE = 1024
 
-PKG_CREATE_SESSION = 42
+PKG_CREATE_SESSION = 0
+PKG_JOIN_SESSION = 1
+PKG_GET_SESSION = 2
+PKG_LEAVE_SESSION = 3
+PKG_SUGGEST_NUMBER = 4
+
 
 def read_int(stream):
     return 0
@@ -38,3 +43,7 @@ def read_package(stream):
         data = read_create_session(stream)
 
     return pkg_type, data
+
+def write_package(stream, data):
+    #...
+    pass
