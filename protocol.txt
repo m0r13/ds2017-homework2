@@ -2,7 +2,7 @@ Client -> <- Server
 
 Connection:
 -> hello (username)
-<- ack(?)
+<- hello_ack(username_available)
 
 Get list of sessions:
 -> get_sessions()
@@ -10,21 +10,21 @@ Get list of sessions:
 
 Join existing session:
 -> join_session(id)
-<- session_joined(id)
+<- session_joined(ok, id)
 
 OR
 Create new session:
 -> create_session(number of players)
-<- session_joined(id)
+<- session_joined(ok, id)
 
 When session is joined:
-<- game_started()
+<- session_started()
 <- sudoku_state(sudoku)
 <- scores_state((player_name, points), ...)
 
 When player wants to suggest a number:
 -> suggest_number(position, number)
-<- ack(?)
+<- suggest_number_ack(ok)
 <- sudoku_state(sudoku)
 <- scores_state((player_name, points), ...)
 
