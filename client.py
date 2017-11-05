@@ -3,6 +3,7 @@
 import sys
 import random
 import time
+import threading
 from PyQt4 import QtGui, QtCore
 
 class SudokuItemDelegate(QtGui.QItemDelegate):
@@ -127,11 +128,14 @@ class NetworkThread(QtCore.QThread):
     usernameAck = QtCore.pyqtSignal(bool)
 
     sessionsReceived = QtCore.pyqtSignal(object)
-    
+
     sessionJoined = QtCore.pyqtSignal(bool, int)
     sessionStarted = QtCore.pyqtSignal()
     sudokuReceived = QtCore.pyqtSignal(object)
     scoresReceived = QtCore.pyqtSignal(object)
+
+    suggestNumberAck = QtCore.pyqtSignal(int, int, bool)
+    gameOver = QtCore.pyqtSignal(str)
 
     def __init__(self, host, port, *args, **kwargs):
         super(QtCore.QThread, self).__init__(*args, **kwargs)
@@ -139,6 +143,9 @@ class NetworkThread(QtCore.QThread):
         self.host = host
         self.port = port
         self.username = ""
+
+        self.sudoku = None
+        self.scores = None
 
     def run(self):
         time.sleep(0.1)
@@ -166,20 +173,50 @@ class NetworkThread(QtCore.QThread):
             self.sessionsReceived.emit(sessions)
         QtCore.QTimer.singleShot(1000, sessions)
 
+    def _sessionJoined(self, ident):
+        def blah():
+            self.sessionJoined.emit(True, ident)
+            self.scores = [(self.username, 0)]
+            for i in range(3):
+                time.sleep(1)
+                self.scores.append((["test", "Bruno", "Sander"][i], 0))
+                self.scoresReceived.emit(self.scores)
+            self.sessionStarted.emit()
+            self.sudoku = [ [ (random.choice(list(range(1, 10))) if random.random() > 0.7 else 0) for j in range(9) ] for i in range(0, 9) ]
+            self.sudokuReceived.emit(self.sudoku)
+        threading.Thread(target=blah).start()
+
     def joinSession(self, ident):
         print "Joining session %d" % ident
         def response():
             if ident == 1:
                 self.sessionJoined.emit(False, -1)
             else:
-                self.sessionJoined.emit(True, ident)
+                self._sessionJoined(ident)
         QtCore.QTimer.singleShot(1000, response)
 
     def createSession(self, name, numPlayers):
         print "Creating session %s with %d players" % (name, numPlayers)
         def response():
-            self.sessionJoined.emit(True, 42)
+            self._sessionJoined(42)
         QtCore.QTimer.singleShot(1000, response)
+
+    def suggestNumber(self, i, j, number):
+        def response():
+            if random.choice([True, False]):
+                print "Number is ok!"
+                self.suggestNumberAck.emit(i, j, True)
+                self.scores[0] = (self.scores[0][0], self.scores[0][1] + 1)
+                self.sudoku[i][j] = number
+            else:
+                print "Number is not ok!"
+                self.suggestNumberAck.emit(i, j, False)
+                self.scores[0] = (self.scores[0][0], self.scores[0][1] - 1)
+            self.scoresReceived.emit(self.scores)
+            self.sudokuReceived.emit(self.sudoku)
+            if random.random() < 0.2:
+                self.gameOver.emit(self.username)
+        QtCore.QTimer.singleShot(300, response)
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -189,6 +226,8 @@ class MainWindow(QtGui.QMainWindow):
         self.table = QtGui.QTableWidget()
         self.table.setRowCount(9)
         self.table.setColumnCount(9)
+        self.table.horizontalHeader().hide()
+        self.table.verticalHeader().hide()
         for i in range(0, 9):
             for j in range(0, 9):
                 item = QtGui.QTableWidgetItem("")
@@ -210,13 +249,9 @@ class MainWindow(QtGui.QMainWindow):
 
         self.thread = None
 
-        self.setScoresState([
-            ("Bruno", 73),
-            ("Moritz", 42)
-        ])
-        self.setSudokuState([ [ (random.choice(list(range(1, 10))) if random.random() > 0.7 else 0) for j in range(9) ] for i in range(0, 9) ])
-        for row in self.getSudokuState():
-            print row
+        self.setScoresState([])
+        self.setSudokuState([[0]*9] * 9)
+        self.table.setEnabled(False)
 
         QtCore.QTimer.singleShot(10, self.doConnect)
 
@@ -235,6 +270,10 @@ class MainWindow(QtGui.QMainWindow):
         self.thread = NetworkThread(host, port)
         self.thread.connected.connect(self.onConnected)
         self.thread.usernameAck.connect(self.onUsernameAck)
+        self.thread.sessionStarted.connect(self.onSessionStarted)
+        self.thread.sudokuReceived.connect(self.onSudokuReceived)
+        self.thread.scoresReceived.connect(self.onScoresReceived)
+        self.thread.gameOver.connect(self.onGameOver)
         self.thread.start()
 
     def doRequestUsername(self):
@@ -260,9 +299,28 @@ class MainWindow(QtGui.QMainWindow):
             self.doRequestUsername()
 
     def doLobby(self):
+        self.setScoresState([])
+        self.setSudokuState([[0]*9] * 9)
+        self.table.setEnabled(False)
         dialog = LobbyDialog(self.thread, self)
         dialog.show()
         dialog.exec_()
+        if not dialog.result():
+            # TODO
+            assert False
+
+    def onSessionStarted(self):
+        self.table.setEnabled(True)
+
+    def onSudokuReceived(self, sudoku):
+        self.setSudokuState(sudoku)
+
+    def onScoresReceived(self, scores):
+        self.setScoresState(scores)
+
+    def onGameOver(self, winner):
+        QtGui.QMessageBox.information(self, "Game is over", "The game is over. Winner is: %s" % winner)
+        self.doLobby()
 
     def cellChanged(self, i, j):
         print "Cell %d:%d changed" % (i, j)
@@ -272,8 +330,8 @@ class MainWindow(QtGui.QMainWindow):
             return
         if x in map(str, range(1, 10)):
             x = int(x)
-            # TODO suggest change to server
             print "Suggest value %d" % x
+            self.thread.suggestNumber(i, j, x)
         else:
             print "Invalid value '%s'!" % x
         self.table.blockSignals(True)
