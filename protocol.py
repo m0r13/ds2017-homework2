@@ -3,7 +3,7 @@ import socket
 import struct
 
 SERVER_INET_ADDR = "127.0.0.1"
-SERVER_PORT = 8888
+SERVER_PORT = 8889
 TCP_RECEIVE_BUFFER_SIZE = 1024
 
 PKG_HELLO = 0
@@ -20,8 +20,16 @@ PKG_SUGGEST_NUMBER_ACK = 10
 PKG_LEAVE_SESSION = 11
 PKG_GAME_OVER = 12
 
+def read_bytes(stream, n):
+    data = bytes()
+    while len(data) != n:
+        d = stream.recv(n - len(data))
+        if d:
+            data = data + d
+    return data
+
 def read_int(stream):
-    data = stream.recv(4)
+    data = read_bytes(4)
     #data = stream.read(4)
     i, = struct.unpack("!i", data)
     return i
@@ -31,7 +39,7 @@ def read_bool(stream):
 
 def read_string(stream):
     length = read_int(stream)
-    s = stream.recv(length)
+    s = read_data(length)
     #s = stream.read(length)
     return s.decode("utf-8")
 
