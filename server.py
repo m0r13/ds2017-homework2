@@ -15,17 +15,18 @@ class Manager():
         self.clients = []
         self.ServerUsernames = [] 
     
-    def notify(self, game):
+    def notify(self, game, username):
         for i in clients:
-            if game.get_uuid == game.get_uuid():
+            if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_SUDOKU_STATE, \
                               {'sudoku': game.get_sudoku().serialize()})
                 write_package(i.socket, PKG_SCORES_STATE, {'scores': game.get_scores()})
-    
+        
     def game_over(self, game):
         for i in clients:
-            if game.get_uuid == game.get_uuid():
+            if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_GAME_OVER, {'winner': True})
+        print "Game over, game uuid: %s" % game.get_uuid()
                  
             
              
@@ -137,11 +138,13 @@ class ClientThread(threading.Thread):
                 
                 # Notify to everyone in the same game
                 manager.notify(game)
-                
+                print "%s wrote %d in position (%d, %d) in the Sudoku with game uuid %s" % \
+                      (username, data['number'], data['i'], data['j'], self.game.get_uuid())
+                      
             # Player wants to leave
             elif pkg_type == PKG_LEAVE_SESSION:
                 finish = self.game.leave_game(self.username)
-            
+
             if finish:
                 manager.game_over(self.game)
      
