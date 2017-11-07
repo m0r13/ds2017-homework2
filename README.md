@@ -7,5 +7,7 @@
 - Bruno Produit
 
 ## Instructions
-- Run server: **python server.py**
-- Run client: **python client.py**
+- Run server: 
+`<python server.py>`
+- Run client: 
+`<python client.py>`
