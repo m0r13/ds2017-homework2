@@ -5,3 +5,7 @@
 - Sander Mikelsaar
 - Moritz Hilscher
 - Bruno Produit
+
+## Instructions
+- Run server: **python server.py**
+- Run client: **python client.py**
