@@ -10,6 +10,10 @@
 - Requires module [PyQt4](https://www.riverbankcomputing.com/software/pyqt/download) for the client GUI
 
 - Run server: 
-```python server.py```
+```
+python server.py
+```
 - Run client: 
-```<python client.py>```
+```
+python client.py
+```
