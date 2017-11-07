@@ -261,5 +261,5 @@ def read_package(stream):
 
 def write_package(stream, pkg_type, data):
     assert pkg_type in PACKAGES
-    PACKAGES[pkg_type][0](data)
+    PACKAGES[pkg_type][0](stream, data)
 
