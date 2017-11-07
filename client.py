@@ -284,13 +284,16 @@ class NetworkThread(QtCore.QThread):
                     pkg_type, data = protocol.read_package(stream)
                     print "Received: %d, %s" % (pkg_type, data)
 
+                    if pkg_type == protocol.PKG_HELLO_ACK:
+                        self.usernameAck.emit(data["username_ok"])
+
                 while not self.package_queue.empty():
                     pkg_type, data = self.package_queue.get()
+                    print "Writing: %d, %s" % pkg_type, data
                     protocol.write_package(stream, pkg_type, data)
 
-            time.sleep(5)
-            self.disconnected.emit("Okay that's enough!")
             self.socket.close()
+            self.disconnected.emit("Disconnected!")
         except socket.error, e:
             print e
             self.disconnected.emit(str(e))
