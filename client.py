@@ -4,6 +4,9 @@ import sys
 import random
 import time
 import threading
+import socket
+import protocol
+import Queue
 from PyQt4 import QtGui, QtCore
 
 class SudokuItemDelegate(QtGui.QItemDelegate):
@@ -221,6 +224,28 @@ class MockedNetworkThread(QtCore.QThread):
     def leaveSession(self):
         pass
 
+class SocketWrapper:
+    def __init__(self, socket):
+        self.socket = socket
+        self.buffer = buffer("")
+
+    def receive(self):
+        self.socket.recvfrom_into(self.buffer)
+
+    def available(self):
+        return len(self.buffer)
+
+    def recv(self, n):
+        while self.available() < n:
+            self.receive()
+            time.sleep(0.01)
+        data = bytes(buffer(self.buffer, 0, n))
+        self.buffer = buffer(self.buffer, n)
+        return data
+
+    def sendall(self, data):
+        self.socket.sendall(data)
+
 class NetworkThread(QtCore.QThread):
 
     connected = QtCore.pyqtSignal()
@@ -243,13 +268,26 @@ class NetworkThread(QtCore.QThread):
         self.host = host
         self.port = port
         self.socket = None
+        self.package_queue = Queue.Queue()
+        self.stop = False
         self.username = ""
 
     def run(self):
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
+            self.socket.setblocking(False)
+            stream = SocketWrapper(self.socket)
             self.connected.emit()
+            while not self.stop:
+                while stream.available():
+                    pkg_type, data = protocol.read_package(stream)
+                    print "Received: %d, %s" % (pkg_type, data)
+
+                while not self.package_queue.empty():
+                    pkg_type, data = self.package_queue.get()
+                    protocol.write_package(stream, pkg_type, data)
+
             time.sleep(5)
             self.disconnected.emit("Okay that's enough!")
             self.socket.close()
@@ -258,10 +296,10 @@ class NetworkThread(QtCore.QThread):
             self.disconnected.emit(str(e))
 
     def disconnect(self):
-        pass
+        self.stop = True
 
     def setUsername(self, username):
-        pass
+        self.package_queue.put((protocol.PKG_HELLO, {"username", username}))
 
     def requestSessions(self):
         pass
@@ -334,11 +372,12 @@ class MainWindow(QtGui.QMainWindow):
         host, port = address, 1234
         if ":" in address:
             host, port = address.split(":")
+            port = int(port)
 
         self.status.showMessage("Connecting...")
         # TODO check if there is already a connection / thread ?
         assert self.thread is None
-        self.thread = MockedNetworkThread(host, port)
+        self.thread = NetworkThread(host, port)
         self.thread.connected.connect(self.onConnected)
         self.thread.disconnected.connect(self.onDisconnected)
         self.thread.usernameAck.connect(self.onUsernameAck)
@@ -421,7 +460,7 @@ class MainWindow(QtGui.QMainWindow):
     def onDisconnected(self, reason):
         self.disconnectButton.setEnabled(False)
 
-        self.thread.join()
+        self.thread.wait()
         self.thread = None
         QtGui.QMessageBox.information(self, "Disconnected", "Disconnected from server:\n" + reason)
         self.doConnect()
