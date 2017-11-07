@@ -2,7 +2,7 @@ Client -> <- Server
 
 Connection:
 -> hello (username)
-<- hello_ack(username_ok)
+<- hello_ack(ok)
 
 Get list of sessions:
 -> get_sessions()
