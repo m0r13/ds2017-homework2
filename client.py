@@ -302,7 +302,7 @@ class NetworkThread(QtCore.QThread):
         self.stop = True
 
     def setUsername(self, username):
-        self.package_queue.put((protocol.PKG_HELLO, {"username", username}))
+        self.package_queue.put((protocol.PKG_HELLO, {"username" : username}))
 
     def requestSessions(self):
         pass
