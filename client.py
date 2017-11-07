@@ -280,6 +280,7 @@ class NetworkThread(QtCore.QThread):
             stream = SocketWrapper(self.socket)
             self.connected.emit()
             while not self.stop:
+                stream.receive()
                 while stream.available():
                     pkg_type, data = protocol.read_package(stream)
                     print "Received: %d, %s" % (pkg_type, data)
