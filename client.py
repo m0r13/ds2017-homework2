@@ -289,7 +289,7 @@ class NetworkThread(QtCore.QThread):
 
                 while not self.package_queue.empty():
                     pkg_type, data = self.package_queue.get()
-                    print "Writing: %d, %s" % pkg_type, data
+                    print "Writing: %d, %s" % (pkg_type, data)
                     protocol.write_package(stream, pkg_type, data)
 
             self.socket.close()
@@ -367,7 +367,7 @@ class MainWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(10, self.doConnect)
 
     def doConnect(self):
-        address, ok = QtGui.QInputDialog.getText(self, "Server address", "Please enter the server address and port (host:port):", QtGui.QLineEdit.Normal, "localhost:1234")
+        address, ok = QtGui.QInputDialog.getText(self, "Server address", "Please enter the server address and port (host:port):", QtGui.QLineEdit.Normal, "localhost:8888")
         if not ok:
             self.close()
             return
