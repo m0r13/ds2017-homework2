@@ -121,10 +121,10 @@ class LobbyDialog(QtGui.QDialog):
             return
         self.accept()
 
-class NetworkThread(QtCore.QThread):
+class MockedNetworkThread(QtCore.QThread):
 
     connected = QtCore.pyqtSignal()
-    disconnected = QtCore.pyqtSignal()
+    disconnected = QtCore.pyqtSignal(str)
     usernameAck = QtCore.pyqtSignal(bool)
 
     sessionsReceived = QtCore.pyqtSignal(object)
@@ -153,7 +153,7 @@ class NetworkThread(QtCore.QThread):
 
     def disconnect(self):
         def disconnected():
-            self.disconnected.emit()
+            self.disconnected.emit("Disconnected!")
         QtCore.QTimer.singleShot(100, disconnected)
 
     def setUsername(self, username):
@@ -218,11 +218,20 @@ class NetworkThread(QtCore.QThread):
                 self.gameOver.emit(self.username)
         QtCore.QTimer.singleShot(300, response)
 
+    def leaveSession(self):
+        pass
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(QtGui.QMainWindow, self).__init__(*args, **kwargs)
 
         self.list = QtGui.QListWidget()
+        self.leaveSessionButton = QtGui.QPushButton("Leave session")
+        self.leaveSessionButton.setEnabled(False)
+        self.leaveSessionButton.clicked.connect(self.doLeaveSession)
+        self.disconnectButton = QtGui.QPushButton("Disconnect from server")
+        self.disconnectButton.setEnabled(False)
+        self.disconnectButton.clicked.connect(self.doDisconnect)
         self.table = QtGui.QTableWidget()
         self.table.setRowCount(9)
         self.table.setColumnCount(9)
@@ -238,9 +247,13 @@ class MainWindow(QtGui.QMainWindow):
         self.table.cellChanged.connect(self.cellChanged)
  
         layout = QtGui.QHBoxLayout()
-        widget = QtGui.QWidget()
-        layout.addWidget(self.list)
+        leftLayout = QtGui.QVBoxLayout()
+        leftLayout.addWidget(self.list)
+        leftLayout.addWidget(self.leaveSessionButton)
+        leftLayout.addWidget(self.disconnectButton)
+        layout.addLayout(leftLayout)
         layout.addWidget(self.table)
+        widget = QtGui.QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
@@ -267,9 +280,12 @@ class MainWindow(QtGui.QMainWindow):
 
         self.status.showMessage("Connecting...")
         # TODO check if there is already a connection / thread ?
-        self.thread = NetworkThread(host, port)
+        assert self.thread is None
+        self.thread = MockedNetworkThread(host, port)
         self.thread.connected.connect(self.onConnected)
+        self.thread.disconnected.connect(self.onDisconnected)
         self.thread.usernameAck.connect(self.onUsernameAck)
+        self.thread.sessionJoined.connect(self.onSessionJoined)
         self.thread.sessionStarted.connect(self.onSessionStarted)
         self.thread.sudokuReceived.connect(self.onSudokuReceived)
         self.thread.scoresReceived.connect(self.onScoresReceived)
@@ -287,6 +303,7 @@ class MainWindow(QtGui.QMainWindow):
         self.thread.setUsername(name)
 
     def onConnected(self):
+        self.disconnectButton.setEnabled(True)
         self.status.showMessage("Connected")
         self.doRequestUsername()
 
@@ -302,12 +319,22 @@ class MainWindow(QtGui.QMainWindow):
         self.setScoresState([])
         self.setSudokuState([[0]*9] * 9)
         self.table.setEnabled(False)
-        dialog = LobbyDialog(self.thread, self)
-        dialog.show()
-        dialog.exec_()
-        if not dialog.result():
-            # TODO
-            assert False
+
+        result = False
+        while not result:
+            dialog = LobbyDialog(self.thread, self)
+            dialog.show()
+            dialog.exec_()
+            result = dialog.result()
+            if not result:
+                r = QtGui.QMessageBox.question(self, "Disconnect from server", "Do you want to disconnect from the server?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+                if r == QtGui.QMessageBox.Yes:
+                    self.doDisconnect()
+                    return
+
+    def onSessionJoined(self):
+        # TODO connect this!
+        self.leaveSessionButton.setEnabled(True)
 
     def onSessionStarted(self):
         self.table.setEnabled(True)
@@ -318,9 +345,29 @@ class MainWindow(QtGui.QMainWindow):
     def onScoresReceived(self, scores):
         self.setScoresState(scores)
 
+    def doLeaveSession(self):
+        self.leaveSessionButton.setEnabled(False)
+        self.doLobby()
+
     def onGameOver(self, winner):
+        self.leaveSessionButton.setEnabled(False)
         QtGui.QMessageBox.information(self, "Game is over", "The game is over. Winner is: %s" % winner)
         self.doLobby()
+
+    def doDisconnect(self):
+        self.leaveSessionButton.setEnabled(False)
+        self.setScoresState([])
+        self.setSudokuState([[0]*9] * 9)
+        self.table.setEnabled(False)
+        self.thread.disconnect()
+
+    def onDisconnected(self, reason):
+        self.disconnectButton.setEnabled(False)
+
+        self.thread.join()
+        self.thread = None
+        QtGui.QMessageBox.information(self, "Disconnected", "Disconnected from server:\n" + reason)
+        self.doConnect()
 
     def cellChanged(self, i, j):
         print "Cell %d:%d changed" % (i, j)
