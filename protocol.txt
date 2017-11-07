@@ -2,7 +2,7 @@ Client -> <- Server
 
 Connection:
 -> hello (username)
-<- hello_ack(username_available)
+<- hello_ack(username_ok)
 
 Get list of sessions:
 -> get_sessions()
@@ -17,19 +17,19 @@ Create new session:
 -> create_session(num_players)
 <- session_joined(ok, uuid)
 
-When session is joined:
+Session is joined:
 <- session_started()
-<- sudoku_state(sudoku)
+<- sudoku_state(sudoku : [i_1, i_2, ..., i_81])
 <- scores_state(scores : [(player_name, points), ...])
 
 Player suggest a number:
--> suggest_number(position, number)
-<- suggest_number_ack(ok)
-<- sudoku_state(sudoku)
+-> suggest_number(i, j, number)
+<- suggest_number_ack(i, j, ok)
+<- sudoku_state(sudoku : [i_1, i_2, ..., i_81])
 <- scores_state(scores : [(player_name, points), ...])
 
 Another player has suggested a number:
-<- sudoku_state(sudoku)
+<- sudoku_state(sudoku : [i_1, i_2, ..., i_81])
 <- scores_state(scores : [(player_name, points), ...])
 
 Player wants to leave:
