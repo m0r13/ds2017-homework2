@@ -6,16 +6,16 @@ Connection:
 
 Get list of sessions:
 -> get_sessions()
-<- sessions((id, current/maximum number of players), ...)
+<- sessions((uuid, current/maximum number of players), ...)
 
 Join existing session:
--> join_session(id)
-<- session_joined(ok, id)
+-> join_session(uuid)
+<- session_joined(ok, uuid)
 
 OR
 Create new session:
 -> create_session(number of players)
-<- session_joined(ok, id)
+<- session_joined(ok, uuid)
 
 When session is joined:
 <- session_started()
