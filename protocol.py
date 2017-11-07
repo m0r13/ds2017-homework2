@@ -44,6 +44,6 @@ def read_package(stream):
 
     return pkg_type, data
 
-def write_package(stream, data):
+def write_package(stream, pkg_type, data):
     #...
     pass
