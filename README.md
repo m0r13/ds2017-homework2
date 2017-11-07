@@ -7,6 +7,8 @@
 - Bruno Produit
 
 ## Instructions
+- Requires module [PyQt4](https://www.riverbankcomputing.com/software/pyqt/download) for the client GUI
+
 - Run server: 
 `<python server.py>`
 - Run client: 
