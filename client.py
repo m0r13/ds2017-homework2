@@ -254,7 +254,7 @@ class NetworkThread(QtCore.QThread):
 
     sessionsReceived = QtCore.pyqtSignal(object)
 
-    sessionJoined = QtCore.pyqtSignal(bool, int)
+    sessionJoined = QtCore.pyqtSignal(bool, str)
     sessionStarted = QtCore.pyqtSignal()
     sudokuReceived = QtCore.pyqtSignal(object)
     scoresReceived = QtCore.pyqtSignal(object)
@@ -285,7 +285,11 @@ class NetworkThread(QtCore.QThread):
                     print "Received: %d, %s" % (pkg_type, data)
 
                     if pkg_type == protocol.PKG_HELLO_ACK:
-                        self.usernameAck.emit(data["username_ok"])
+                        self.usernameAck.emit(data["ok"])
+                    if pkg_type == protocol.PKG_SESSIONS:
+                        self.sessionsReceived.emit(data["sessions"])
+                    if pkg_type == protocol.PKG_SESSION_JOINED:
+                        self.sessionJoined.emit(data["ok"], data["uuid"])
 
                 while not self.package_queue.empty():
                     pkg_type, data = self.package_queue.get()
@@ -305,13 +309,13 @@ class NetworkThread(QtCore.QThread):
         self.package_queue.put((protocol.PKG_HELLO, {"username" : username}))
 
     def requestSessions(self):
-        pass
+        self.package_queue.put((protocol.PKG_GET_SESSIONS, {}))
 
     def joinSession(self, ident):
-        pass
+        self.package_queue.put((protocol.PKG_JOIN_SESSION, {"uuid" : ident}))
 
     def createSession(self, name, numPlayers):
-        pass
+        self.package_queue.put((protocol.PKG_CREATE_SESSION, {"name" : name, "num_players" : numPlayers}))
 
     def suggestNumber(self, i, j, number):
         pass

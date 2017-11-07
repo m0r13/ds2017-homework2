@@ -136,10 +136,12 @@ def read_session_joined(stream):
 
 def write_create_session(stream, data):
     write_int(stream, PKG_CREATE_SESSION)
+    write_string(stream, data["name"])
     write_int(stream, data["num_players"])
 
 def read_create_session(stream):
     data = {}
+    data["name"] = read_string(stream)
     data["num_players"] = read_int(stream)
     return data
 
