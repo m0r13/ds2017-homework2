@@ -6,7 +6,7 @@ Connection:
 
 Get list of sessions:
 -> get_sessions()
-<- sessions(sessions : [(uuid, cur_num_players), ...])
+<- sessions(sessions : [(uuid, name, cur_num_players, max_num_players), ...])
 
 Join existing session:
 -> join_session(uuid)
