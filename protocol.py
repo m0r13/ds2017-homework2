@@ -9,16 +9,17 @@ TCP_RECEIVE_BUFFER_SIZE = 1024
 PKG_HELLO = 0
 PKG_HELLO_ACK = 1
 PKG_GET_SESSIONS = 2
-PKG_JOIN_SESSION = 3
-PKG_SESSION_JOINED = 4
-PKG_CREATE_SESSION = 5
-PKG_SESSION_STARTED = 6
-PKG_SUDOKU_STATE = 7
-PKG_SCORES_STATE = 8
-PKG_SUGGEST_NUMBER = 9
-PKG_SUGGEST_NUMBER_ACK = 10
-PKG_LEAVE_SESSION = 11
-PKG_GAME_OVER = 12
+PKG_SESSIONS = 3
+PKG_JOIN_SESSION = 4
+PKG_SESSION_JOINED = 5
+PKG_CREATE_SESSION = 6
+PKG_SESSION_STARTED = 7
+PKG_SUDOKU_STATE = 8
+PKG_SCORES_STATE = 9
+PKG_SUGGEST_NUMBER = 10
+PKG_SUGGEST_NUMBER_ACK = 11
+PKG_LEAVE_SESSION = 12
+PKG_GAME_OVER = 13
 
 def read_bytes(stream, n):
     data = bytes()
@@ -236,6 +237,7 @@ PACKAGES = {
     PKG_HELLO : (write_hello, read_hello),
     PKG_HELLO_ACK : (write_hello_ack, read_hello_ack),
     PKG_GET_SESSIONS : (write_get_sessions, read_get_sessions),
+    PKG_SESSIONS : (write_sessions, read_sessions),
     PKG_JOIN_SESSION : (write_join_session, read_join_session),
     PKG_SESSION_JOINED : (write_session_joined, read_session_joined),
     PKG_CREATE_SESSION : (write_create_session, read_create_session),
