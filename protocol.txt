@@ -6,7 +6,7 @@ Connection:
 
 Get list of sessions:
 -> get_sessions()
-<- sessions((uuid, cur_num_players), ...)
+<- sessions(sessions : [(uuid, cur_num_players), ...])
 
 Join existing session:
 -> join_session(uuid)
@@ -20,21 +20,21 @@ Create new session:
 When session is joined:
 <- session_started()
 <- sudoku_state(sudoku)
-<- scores_state((player_name, points), ...)
+<- scores_state(scores : [(player_name, points), ...])
 
-When player wants to suggest a number:
+Player suggest a number:
 -> suggest_number(position, number)
 <- suggest_number_ack(ok)
 <- sudoku_state(sudoku)
-<- scores_state((player_name, points), ...)
+<- scores_state(scores : [(player_name, points), ...])
 
-When another player has suggested a number:
+Another player has suggested a number:
 <- sudoku_state(sudoku)
-<- scores_state((player_name, points), ...)
+<- scores_state(scores : [(player_name, points), ...])
 
-When a player wants to leave:
+Player wants to leave:
 -> leave_session()
 
-When all players have left except one / sudoku is finished:
+All players have left except one / sudoku is finished:
 <- game_over(winner)
 
