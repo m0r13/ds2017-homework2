@@ -29,7 +29,7 @@ def read_bytes(stream, n):
     return data
 
 def read_int(stream):
-    data = read_bytes(4)
+    data = read_bytes(stream, 4)
     #data = stream.read(4)
     i, = struct.unpack("!i", data)
     return i
@@ -39,7 +39,7 @@ def read_bool(stream):
 
 def read_string(stream):
     length = read_int(stream)
-    s = read_data(length)
+    s = read_bytes(stream, length)
     #s = stream.read(length)
     return s.decode("utf-8")
 
