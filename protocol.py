@@ -72,11 +72,11 @@ def read_hello(stream):
 
 def write_hello_ack(stream, data):
     write_int(stream, PKG_HELLO_ACK)
-    write_bool(stream, data["username_ok"])
+    write_bool(stream, data["ok"])
 
 def read_hello_ack(stream):
     data = {}
-    data["username_ok"] = read_bool(stream)
+    data["ok"] = read_bool(stream)
 
 #####
 
