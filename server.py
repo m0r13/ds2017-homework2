@@ -17,19 +17,16 @@ class Game():
         self.__sudoku = Sudoku()
         self.__users = {username : 0} # username: score
     
-    @staticmethod
-    def join_game(game, username):
-        assert(!isFull(game))
-        game.__users[username] = 0
-        
+    def join(self, username):
+        assert(!self.is_full(game))
+        self.__users[username] = 0
     
     def get_uuid(self):
         return self.__uuid
     
     def get_sudoku(self):
         return self.__sudoku
-    
-    
+
     def get_scores(self):
         return self.__users.items() # convert dict to array of tuples
     
@@ -38,6 +35,9 @@ class Game():
     
     def get_cur_num_players(self):
         return len(self.__users)
+
+    def is_full(self):
+        return len(self.__users) == self.__num_players
         
     def insert_number(self, username, i, j, number):
         point, finish = self.__sudoku.insert(i, j, number)
@@ -47,20 +47,11 @@ class Game():
             #...
             pass
     
-    
-    # returns True if there are num_player users in the game
-    @staticmethod
-    def isFull(game)
-        return len(game.__users)==game.__num_players    
-    
-    
     def leave_game(self, username)
         score = self.__users[username]
         del self.__users[username]
         return username, score
-        
-        
-        
+
 class ClientThread(threading.Thread):
     
     def __init__(self, client_socket, client_address):
@@ -99,7 +90,7 @@ class ClientThread(threading.Thread):
                     write_package(__socket, PKG_SESSION_JOINED, {'ok' : False, 'uuid' : data['uuid']})
                 else:
                     __game = Servergames[data['uuid']]
-                    Game.join_game(Servergames[data['uuid']], self.__username)
+                    __game.join(self.__username)
                     write_package(__socket, PKG_SESSION_JOINED, {'ok' : True, 'uuid' : data['uuid']})
                     write_package(__socket, PKG_SESSION_STARTED, {})             
                     write_package(__socket, PKG_SUDOKU_STATE, {'sudoku': __game.get_sudoku().serialize()})
