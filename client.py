@@ -221,6 +221,63 @@ class MockedNetworkThread(QtCore.QThread):
     def leaveSession(self):
         pass
 
+class NetworkThread(QtCore.QThread):
+
+    connected = QtCore.pyqtSignal()
+    disconnected = QtCore.pyqtSignal(str)
+    usernameAck = QtCore.pyqtSignal(bool)
+
+    sessionsReceived = QtCore.pyqtSignal(object)
+
+    sessionJoined = QtCore.pyqtSignal(bool, int)
+    sessionStarted = QtCore.pyqtSignal()
+    sudokuReceived = QtCore.pyqtSignal(object)
+    scoresReceived = QtCore.pyqtSignal(object)
+
+    suggestNumberAck = QtCore.pyqtSignal(int, int, bool)
+    gameOver = QtCore.pyqtSignal(str)
+
+    def __init__(self, host, port, *args, **kwargs):
+        super(QtCore.QThread, self).__init__(*args, **kwargs)
+
+        self.host = host
+        self.port = port
+        self.socket = None
+        self.username = ""
+
+    def run(self):
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.host, self.port))
+            self.connected.emit()
+            time.sleep(5)
+            self.disconnected.emit("Okay that's enough!")
+            self.socket.close()
+        except socket.error, e:
+            print e
+            self.disconnected.emit(str(e))
+
+    def disconnect(self):
+        pass
+
+    def setUsername(self, username):
+        pass
+
+    def requestSessions(self):
+        pass
+
+    def joinSession(self, ident):
+        pass
+
+    def createSession(self, name, numPlayers):
+        pass
+
+    def suggestNumber(self, i, j, number):
+        pass
+
+    def leaveSession(self):
+        pass
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(QtGui.QMainWindow, self).__init__(*args, **kwargs)
