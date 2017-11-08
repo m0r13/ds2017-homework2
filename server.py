@@ -38,12 +38,12 @@ class Game():
     Creates a sudoku object and keeps track of points
     """
     
-    def __init__(self, num_players, username):
+    def __init__(self, name, num_players, username):
         self.__num_players = num_players
         self.__uuid = str(uuid.uuid4())
         self.__sudoku = Sudoku()
         self.__users = {username : 0} # username: score
-        self.__game_name = username + "'s game"
+        self.__game_name = name
     
     def join(self, username):
         assert(not self.is_full(game))
@@ -133,7 +133,7 @@ class ClientThread(threading.Thread):
             # Create new session   
             elif pkg_type == PKG_CREATE_SESSION:
                 print "Received PKG_CREATE_SESSION"
-                self.game = Game(data['num_players'], self.username)
+                self.game = Game(data['name'], data['num_players'], self.username)
                 manager.ServerGames[self.game.get_uuid()] = self.game
                 write_package(self.socket, PKG_SESSION_JOINED, \
                               {'ok' : True, 'uuid' : self.game.get_uuid()})           
