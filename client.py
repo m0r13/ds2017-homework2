@@ -117,7 +117,7 @@ class LobbyDialog(QtGui.QDialog):
             QtGui.QMessageBox.critical(self, "Select a session", "You have to select a session!")
             return
         session = selection[0]
-        ident, _ = session.data(QtCore.Qt.UserRole).toInt()
+        ident = str(session.data(QtCore.Qt.UserRole).toString())
         self.connection.joinSession(ident)
 
     def onSessionJoined(self, joined, ident):
@@ -134,7 +134,7 @@ class MockedNetworkThread(QtCore.QThread):
 
     sessionsReceived = QtCore.pyqtSignal(object)
 
-    sessionJoined = QtCore.pyqtSignal(bool, int)
+    sessionJoined = QtCore.pyqtSignal(bool, str)
     sessionStarted = QtCore.pyqtSignal()
     sudokuReceived = QtCore.pyqtSignal(object)
     scoresReceived = QtCore.pyqtSignal(object)
@@ -447,7 +447,7 @@ class MainWindow(QtGui.QMainWindow):
                     self.doDisconnect()
                     return
 
-    def onSessionJoined(self):
+    def onSessionJoined(self, ok, ident):
         # TODO connect this!
         self.leaveSessionButton.setEnabled(True)
 

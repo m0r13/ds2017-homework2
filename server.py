@@ -46,7 +46,7 @@ class Game():
         self.__game_name = name
     
     def join(self, username):
-        assert(not self.is_full(game))
+        assert(not self.is_full())
         self.__users[username] = 0
 
     def get_uuid(self):
@@ -117,8 +117,7 @@ class ClientThread(threading.Thread):
             # Join existing session   
             elif pkg_type == PKG_JOIN_SESSION:
                 print "Received PKG_JOIN_SESSION"
-                if game.isFull(manager.ServerGames[data['uuid']]) \
-                or data['uuid'] not in manager.ServerGames:
+                if data['uuid'] not in manager.ServerGames or manager.ServerGames[data['uuid']].is_full():
                     write_package(self.socket, PKG_SESSION_JOINED, {'ok' : False, 'uuid' : data['uuid']})
                 else:
                     game = manager.ServerGames[data['uuid']]
