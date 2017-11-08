@@ -300,6 +300,17 @@ class NetworkThread(QtCore.QThread):
                         self.sessionsReceived.emit(data["sessions"])
                     if pkg_type == protocol.PKG_SESSION_JOINED:
                         self.sessionJoined.emit(data["ok"], data["uuid"])
+                    if pkg_type == protocol.PKG_SESSION_STARTED:
+                        self.sessionStarted.emit()
+                    if pkg_type == protocol.PKG_SUDOKU_STATE:
+                        sudoku = []
+                        for i in range(9):
+                            sudoku.append(data["sudoku"][(i*9):(i*9+9)])
+                        self.sudokuReceived.emit(sudoku)
+                    if pkg_type == protocol.PKG_SCORES_STATE:
+                        self.scoresReceived.emit(data["scores"])
+                    if pkg_type == protocol.PKG_SUGGEST_NUMBER_ACK:
+                        self.suggestNumberAck.emit(data["i"], data["j"], data["ok"])
 
                 while not self.package_queue.empty():
                     pkg_type, data = self.package_queue.get()
@@ -330,7 +341,7 @@ class NetworkThread(QtCore.QThread):
         self.package_queue.put((protocol.PKG_CREATE_SESSION, {"name" : name, "num_players" : numPlayers}))
 
     def suggestNumber(self, i, j, number):
-        pass
+        self.package_queue.put((protocol.PKG_SUGGEST_NUMBER, {"i" : i, "j" : j, "number" : number}))
 
     def leaveSession(self):
         pass
@@ -404,6 +415,7 @@ class MainWindow(QtGui.QMainWindow):
         self.thread.sessionStarted.connect(self.onSessionStarted)
         self.thread.sudokuReceived.connect(self.onSudokuReceived)
         self.thread.scoresReceived.connect(self.onScoresReceived)
+        self.thread.suggestNumberAck.connect(self.onSuggestNumberAck)
         self.thread.gameOver.connect(self.onGameOver)
         self.thread.start()
 
@@ -459,6 +471,9 @@ class MainWindow(QtGui.QMainWindow):
 
     def onScoresReceived(self, scores):
         self.setScoresState(scores)
+
+    def onSuggestNumberAck(self, i, j, ok):
+        print "Suggest number ack: %d %d -> %d" % (i, j, ok)
 
     def doLeaveSession(self):
         self.leaveSessionButton.setEnabled(False)

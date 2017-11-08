@@ -16,15 +16,15 @@ class Manager():
         self.ServerUsernames = [] 
         print "Created manager"
     
-    def notify(self, game, username):
-        for i in clients:
+    def notify(self, game):
+        for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_SUDOKU_STATE, \
                               {'sudoku': game.get_sudoku().serialize()})
                 write_package(i.socket, PKG_SCORES_STATE, {'scores': game.get_scores()})
         
     def game_over(self, game):
-        for i in clients:
+        for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_GAME_OVER, {'winner': True})
         print "Game over, game uuid: %s" % game.get_uuid()
@@ -150,16 +150,17 @@ class ClientThread(threading.Thread):
             
             # Player suggest a number
             elif pkg_type == PKG_SUGGEST_NUMBER:
+                # TODO add points to player
                 print "Received PKG_SUGGEST_NUMBER"
                 point, finish = self.game.insert_number(self.username, data['i'], \
                                                         data['j'], data['number'])
                 write_package(self.socket, PKG_SUGGEST_NUMBER_ACK, \
-                              {'ok' : True, 'i' : data['i'], 'j' : data['j']})
+                              {'ok' : point > 0, 'i' : data['i'], 'j' : data['j']})
                 
                 # Notify to everyone in the same game
-                manager.notify(game)
+                manager.notify(self.game)
                 print "%s wrote %d in position (%d, %d) in the Sudoku with game uuid %s" % \
-                      (username, data['number'], data['i'], data['j'], self.game.get_uuid())
+                      (self.username, data['number'], data['i'], data['j'], self.game.get_uuid())
                       
             # Player wants to leave
             elif pkg_type == PKG_LEAVE_SESSION:
