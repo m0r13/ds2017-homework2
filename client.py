@@ -7,6 +7,7 @@ import threading
 import socket
 import protocol
 import Queue
+import signal
 from PyQt4 import QtGui, QtCore
 
 class SudokuItemDelegate(QtGui.QItemDelegate):
@@ -377,7 +378,7 @@ class MainWindow(QtGui.QMainWindow):
             self.close()
             return
         address = str(address)
-        host, port = address, 1234
+        host, port = address, protocol.SERVER_PORT
         if ":" in address:
             host, port = address.split(":")
             port = int(port)
@@ -524,7 +525,13 @@ class MainWindow(QtGui.QMainWindow):
             sudoku.append(row)
         return sudoku
 
+
+def sigint_handler(*args):
+    sys.stderr.write('Got SIGINT, quitting...')
+    QtGui.QApplication.quit()
+        
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, sigint_handler)
     app = QtGui.QApplication(sys.argv)
     main = MainWindow()
     main.show()
