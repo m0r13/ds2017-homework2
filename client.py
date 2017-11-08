@@ -319,6 +319,9 @@ class NetworkThread(QtCore.QThread):
         pass
 
 class MainWindow(QtGui.QMainWindow):
+
+    NUMBER_ACK_HIGHLIGHT_TIME = 1000
+
     def __init__(self, *args, **kwargs):
         super(QtGui.QMainWindow, self).__init__(*args, **kwargs)
 
@@ -445,6 +448,20 @@ class MainWindow(QtGui.QMainWindow):
         self.setScoresState(scores)
 
     def onSuggestNumberAck(self, i, j, ok):
+        red = QtGui.QBrush(QtGui.QColor.fromRgb(255, 0, 0, 128))
+        green = QtGui.QBrush(QtGui.QColor.fromRgb(0, 255, 0, 128))
+        color = green if ok else red
+
+        item = self.table.item(i, j)
+        originalBg = item.background()
+        self.table.blockSignals(True)
+        item.setBackground(color)
+        self.table.blockSignals(False)
+        def resetHighlight(item=item, bg=originalBg):
+            self.table.blockSignals(True)
+            item.setBackground(bg)
+            self.table.blockSignals(False)
+        QtCore.QTimer.singleShot(self.NUMBER_ACK_HIGHLIGHT_TIME, resetHighlight)
         print "Suggest number ack: %d %d -> %d" % (i, j, ok)
 
     def doLeaveSession(self):
