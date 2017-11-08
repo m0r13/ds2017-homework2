@@ -14,6 +14,7 @@ class Manager():
         self.ServerGames = {}
         self.clients = []
         self.ServerUsernames = [] 
+        print "Created manager"
     
     def notify(self, game, username):
         for i in clients:
@@ -44,6 +45,8 @@ class Game():
         self.__sudoku = Sudoku()
         self.__users = {username : 0} # username: score
         self.__game_name = name
+        print "New game %s created by user %s, with max %d users and uuid %s" % \
+              (name, username, num_players, self.__uuid)
     
     def join(self, username):
         assert(not self.is_full())
@@ -111,18 +114,22 @@ class ClientThread(threading.Thread):
                 out = {'sessions': []}
                 for i in manager.ServerGames.keys():
                     game = manager.ServerGames[i]
-                    out['sessions'].append((i, game.get_game_name(), game.get_cur_num_players(), game.get_num_players())) 
+                    out['sessions'].append( \
+                    (i, game.get_game_name(), game.get_cur_num_players(), game.get_num_players())) 
                 write_package(self.socket, PKG_SESSIONS, out)
             
             # Join existing session   
             elif pkg_type == PKG_JOIN_SESSION:
                 print "Received PKG_JOIN_SESSION"
-                if data['uuid'] not in manager.ServerGames or manager.ServerGames[data['uuid']].is_full():
-                    write_package(self.socket, PKG_SESSION_JOINED, {'ok' : False, 'uuid' : data['uuid']})
+                if data['uuid'] not in manager.ServerGames \ 
+                or manager.ServerGames[data['uuid']].is_full():
+                    write_package(self.socket, PKG_SESSION_JOINED, \ 
+                                  {'ok' : False, 'uuid' : data['uuid']})
                 else:
                     game = manager.ServerGames[data['uuid']]
                     game.join(self.username)
-                    write_package(self.socket, PKG_SESSION_JOINED, {'ok' : True, 'uuid' : data['uuid']})
+                    write_package(self.socket, PKG_SESSION_JOINED, \ 
+                                  {'ok' : True, 'uuid' : data['uuid']})
                     write_package(self.socket, PKG_SESSION_STARTED, {})             
                     write_package(self.socket, PKG_SUDOKU_STATE, \
                                   {'sudoku': game.get_sudoku().serialize()})
@@ -144,7 +151,8 @@ class ClientThread(threading.Thread):
             # Player suggest a number
             elif pkg_type == PKG_SUGGEST_NUMBER:
                 print "Received PKG_SUGGEST_NUMBER"
-                point, finish = self.game.insert_number(self.username, data['i'], data['j'], data['number'])
+                point, finish = self.game.insert_number(self.username, data['i'], \ 
+                                                        data['j'], data['number'])
                 write_package(self.socket, PKG_SUGGEST_NUMBER_ACK, \
                               {'ok' : True, 'i' : data['i'], 'j' : data['j']})
                 
