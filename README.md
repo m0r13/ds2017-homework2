@@ -12,13 +12,15 @@ Implementation of a concurrent Sudoku solver
 - Run server: 
 ```
 server.py [-h] [-v] [-H HOST] [-p PORT]
-```
+
+Concurrent Sudoku
+
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
   -H HOST, --host HOST  Server TCP port, defaults to 127.0.0.1
   -p PORT, --port PORT  Server TCP port, defaults to 8888
- 
+```
  
 - Run client: 
 ```
