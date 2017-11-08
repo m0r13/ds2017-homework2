@@ -1,5 +1,5 @@
 # Project for Distributed system class 2017
-
+Implementation of a concurrent Sudoku solver
 ## Students
 - Shahla Atapoor
 - Sander Mikelsaar
