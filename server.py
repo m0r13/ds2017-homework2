@@ -102,21 +102,22 @@ class ClientThread(threading.Thread):
                     write_package(self.socket, PKG_HELLO_ACK, {'ok' : False})
             
             # Get list of sessions
-            elif pkg_type == PKG_GET_SESSION:
-                print "Received PKG_GET_SESSION"
+            elif pkg_type == PKG_GET_SESSIONS:
+                print "Received PKG_GET_SESSIONS"
                 out = {'sessions': []}
                 for i in manager.ServerGames.keys():
-                    out['sessions'].append((i, manager.Servergames[i].get_cur_num_players())) 
+                    game = manager.ServerGames[i]
+                    out['sessions'].append((i, "TODO name", game.get_cur_num_players(), game.get_num_players())) 
                 write_package(self.socket, PKG_SESSIONS, out)
             
             # Join existing session   
             elif pkg_type == PKG_JOIN_SESSION:
                 print "Received PKG_JOIN_SESSION"
-                if game.isFull(manager.Servergames[data['uuid']]) \
-                or data['uuid'] not in manager.Servergames:
+                if game.isFull(manager.ServerGames[data['uuid']]) \
+                or data['uuid'] not in manager.ServerGames:
                     write_package(self.socket, PKG_SESSION_JOINED, {'ok' : False, 'uuid' : data['uuid']})
                 else:
-                    game = manager.Servergames[data['uuid']]
+                    game = manager.ServerGames[data['uuid']]
                     game.join(self.username)
                     write_package(self.socket, PKG_SESSION_JOINED, {'ok' : True, 'uuid' : data['uuid']})
                     write_package(self.socket, PKG_SESSION_STARTED, {})             

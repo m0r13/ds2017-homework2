@@ -4,6 +4,7 @@ import sys
 import random
 import time
 import threading
+import traceback
 import socket
 import protocol
 import Queue
@@ -228,10 +229,17 @@ class MockedNetworkThread(QtCore.QThread):
 class SocketWrapper:
     def __init__(self, socket):
         self.socket = socket
-        self.buffer = buffer("")
+        self.buffer = bytearray("")
 
     def receive(self):
-        self.socket.recvfrom_into(self.buffer)
+        try:
+            d = self.socket.recv(1024)
+            if d:
+                self.buffer += d
+        except socket.error, e:
+            # resource temporarily unavailable if no data in buffer (nonblocking)
+            if e.errno != 11:
+                raise e
 
     def available(self):
         return len(self.buffer)
@@ -240,8 +248,8 @@ class SocketWrapper:
         while self.available() < n:
             self.receive()
             time.sleep(0.01)
-        data = bytes(buffer(self.buffer, 0, n))
-        self.buffer = buffer(self.buffer, n)
+        data = self.buffer[:n]
+        self.buffer = self.buffer[n:]
         return data
 
     def sendall(self, data):
@@ -298,10 +306,12 @@ class NetworkThread(QtCore.QThread):
                     print "Writing: %d, %s" % (pkg_type, data)
                     protocol.write_package(stream, pkg_type, data)
 
+                time.sleep(0.01)
+
             self.socket.close()
             self.disconnected.emit("Disconnected!")
         except socket.error, e:
-            print e
+            traceback.print_exc()
             self.disconnected.emit(str(e))
 
     def disconnect(self):

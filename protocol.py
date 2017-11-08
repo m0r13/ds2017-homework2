@@ -77,6 +77,7 @@ def write_hello_ack(stream, data):
 def read_hello_ack(stream):
     data = {}
     data["ok"] = read_bool(stream)
+    return data
 
 #####
 
@@ -151,7 +152,7 @@ def write_session_started(stream, data):
     write_int(stream, PKG_SESSION_STARTED)
 
 def read_session_started(stream):
-    pass
+    return {}
 
 #####
 
@@ -162,10 +163,10 @@ def write_sudoku_state(stream, data):
         write_int(stream, x)
 
 def read_sudoku_state(stream):
-    data = {}
     sudoku = []
     for i in range(81):
         sudoku.append(read_int(stream))
+    return {"sudoku" : sudoku}
 
 #####
 
@@ -213,6 +214,7 @@ def read_suggest_number_ack(stream):
     data["i"] = read_int(stream)
     data["j"] = read_int(stream)
     data["ok"] = read_bool(stream)
+    return data
 
 #####
 
@@ -220,7 +222,7 @@ def write_leave_session(stream, data):
     write_int(stream, PKG_LEAVE_SESSION)
 
 def read_leave_session(stream):
-    pass
+    return {}
 
 #####
 
