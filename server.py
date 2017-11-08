@@ -1,10 +1,24 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
+"""
+usage: server.py [-h] [-v] [-H HOST] [-p PORT]
+
+Concurrent Sudoku
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -H HOST, --host HOST  Server TCP port, defaults to 127.0.0.1
+  -p PORT, --port PORT  Server TCP port, defaults to 8888
+"""
+
+
 import threading, uuid
 from protocol import *
 from sudoku import *
 from socket import AF_INET, SOCK_STREAM, socket
+from argparse import ArgumentParser # Parsing command line arguments
 
 class Manager():
     """Contains the global variables for the server,
@@ -173,6 +187,16 @@ class ClientThread(threading.Thread):
         
 
 if __name__ == '__main__':
+    
+    # Parse args
+    parser = ArgumentParser(description="Concurrent Sudoku", version = "1.0")
+    parser.add_argument('-H','--host', help='Server TCP port, '\
+                        'defaults to %s' % SERVER_INET_ADDR, \
+                        default=SERVER_INET_ADDR)
+    parser.add_argument('-p','--port', type=int, help='Server TCP port, '\
+                        'defaults to %d' % SERVER_PORT, default=SERVER_PORT)
+    args = parser.parse_args()
+    
     manager = Manager()
     s = socket(AF_INET, SOCK_STREAM)
     s.bind((SERVER_INET_ADDR, SERVER_PORT))
