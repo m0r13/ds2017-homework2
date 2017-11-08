@@ -45,7 +45,7 @@ class Game():
         self.__sudoku = Sudoku()
         self.__users = {username : 0} # username: score
         self.__game_name = name
-        print "New game %s created by user %s, with max %d users and uuid %s" % \
+        print "New game '%s' created by user '%s', with max %d users and uuid %s" % \
               (name, username, num_players, self.__uuid)
     
     def join(self, username):
@@ -121,14 +121,14 @@ class ClientThread(threading.Thread):
             # Join existing session   
             elif pkg_type == PKG_JOIN_SESSION:
                 print "Received PKG_JOIN_SESSION"
-                if data['uuid'] not in manager.ServerGames \ 
+                if data['uuid'] not in manager.ServerGames \
                 or manager.ServerGames[data['uuid']].is_full():
-                    write_package(self.socket, PKG_SESSION_JOINED, \ 
+                    write_package(self.socket, PKG_SESSION_JOINED, \
                                   {'ok' : False, 'uuid' : data['uuid']})
                 else:
                     game = manager.ServerGames[data['uuid']]
                     game.join(self.username)
-                    write_package(self.socket, PKG_SESSION_JOINED, \ 
+                    write_package(self.socket, PKG_SESSION_JOINED, \
                                   {'ok' : True, 'uuid' : data['uuid']})
                     write_package(self.socket, PKG_SESSION_STARTED, {})             
                     write_package(self.socket, PKG_SUDOKU_STATE, \
@@ -151,7 +151,7 @@ class ClientThread(threading.Thread):
             # Player suggest a number
             elif pkg_type == PKG_SUGGEST_NUMBER:
                 print "Received PKG_SUGGEST_NUMBER"
-                point, finish = self.game.insert_number(self.username, data['i'], \ 
+                point, finish = self.game.insert_number(self.username, data['i'], \
                                                         data['j'], data['number'])
                 write_package(self.socket, PKG_SUGGEST_NUMBER_ACK, \
                               {'ok' : True, 'i' : data['i'], 'j' : data['j']})
