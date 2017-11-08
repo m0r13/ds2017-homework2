@@ -72,7 +72,7 @@ class Game():
         return self.__sudoku
 
     def get_scores(self):
-        return sorted(self.__users.items(), k = lambda i: i[1]) # convert dict to array of tuples
+        return sorted(self.__users.items(), key = lambda i: i[1]) # convert dict to array of tuples
 
     def get_num_players(self):
         return self.__num_players    
