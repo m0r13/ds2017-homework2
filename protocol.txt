@@ -14,7 +14,7 @@ Join existing session:
 
 OR
 Create new session:
--> create_session(num_players)
+-> create_session(name, num_players)
 <- session_joined(ok, uuid)
 
 Session is joined:
