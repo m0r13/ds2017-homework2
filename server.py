@@ -13,11 +13,10 @@ optional arguments:
   -p PORT, --port PORT  Server TCP port, defaults to 8888
 """
 
-
-import threading, uuid
+import time, threading, uuid, util
 from protocol import *
 from sudoku import *
-from socket import AF_INET, SOCK_STREAM, socket
+from socket import AF_INET, SOCK_STREAM, SHUT_WR, socket
 from argparse import ArgumentParser # Parsing command line arguments
 
 class Manager():
@@ -102,15 +101,23 @@ class ClientThread(threading.Thread):
         threading.Thread.__init__(self)
         self.username = None
         self.socket = client_socket
+        self.socket.setblocking(False)
         self.address = client_address
         self.game = None
+        self.should_stop = False
     
     def run(self): # Dispatch cases
         finish = False 
-        while True:
+
+        stream = util.SocketWrapper(self.socket)
+        while not self.should_stop:
+            stream.receive()
+            if not stream.available():
+                time.sleep(0.01)
+                continue
             
             # Read incoming packet
-            pkg_type, data = read_package(self.socket)
+            pkg_type, data = read_package(stream)
             
             # Connection
             if pkg_type == PKG_HELLO:
@@ -184,7 +191,13 @@ class ClientThread(threading.Thread):
             
             if finish:
                 manager.game_over(self.game)
-        
+
+        self.socket.shutdown(SHUT_WR)
+        self.socket.close()
+    
+    def stop(self):
+        self.should_stop = True
+
 
 if __name__ == '__main__':
     
@@ -220,8 +233,8 @@ if __name__ == '__main__':
             break
     
     for i in manager.clients:
+        i.stop()
         i.join()        
-        client_socket.close()
         manager.remove_client(i.username)
         print "The client %s closed its connection" % str(client_address)
     s.close()
