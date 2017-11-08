@@ -43,6 +43,7 @@ class Game():
         self.__uuid = str(uuid.uuid4())
         self.__sudoku = Sudoku()
         self.__users = {username : 0} # username: score
+        self.__game_name = username + "'s game"
     
     def join(self, username):
         assert(not self.is_full(game))
@@ -74,6 +75,9 @@ class Game():
     def leave_game(self, username):
         del self.__users[username]
         return self.get_cur_num_players() == 1
+
+    def get_game_name(self):    
+        return self.__game_name
 
 class ClientThread(threading.Thread):
     
@@ -107,7 +111,7 @@ class ClientThread(threading.Thread):
                 out = {'sessions': []}
                 for i in manager.ServerGames.keys():
                     game = manager.ServerGames[i]
-                    out['sessions'].append((i, "TODO name", game.get_cur_num_players(), game.get_num_players())) 
+                    out['sessions'].append((i, game.get_game_name(), game.get_cur_num_players(), game.get_num_players())) 
                 write_package(self.socket, PKG_SESSIONS, out)
             
             # Join existing session   
