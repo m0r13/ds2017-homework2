@@ -75,7 +75,7 @@ class Sudoku():
         for i in range(0, 9):
             row = []
             for j in range(0, 9):
-                row.append(s[count])
+                row.append(int(s[count]))
                 count += 1
             sudoku.append(row)
         f.close()
