@@ -45,7 +45,13 @@ class Manager():
     def remove_client(self, username):
         for i in range(0, len(self.clients)):
             if self.clients[i].username == username:
-                del self.clients[i]  
+                del self.clients[i]
+    
+    def start_game(self, game):
+        for i in self.clients:
+            if game.get_uuid() == i.game.get_uuid():
+                write_package(i.socket, PKG_SESSION_STARTED, {})
+        print "Game over, game uuid: %s" % game.get_uuid()
              
 class Game():
     """Represents the sudoku game on the server side.
@@ -108,92 +114,99 @@ class ClientThread(threading.Thread):
     
     def run(self): # Dispatch cases
         finish = False 
-
-        stream = util.SocketWrapper(self.socket)
-        while not self.should_stop:
-            stream.receive()
-            if not stream.available():
-                time.sleep(0.01)
-                continue
-            
-            # Read incoming packet
-            pkg_type, data = read_package(stream)
-            
-            # Connection
-            if pkg_type == PKG_HELLO:
-                if data['username'] not in manager.ServerUsernames:
-                    print "Received PKG_HELLO"
-                    manager.ServerUsernames.append(data['username'])
-                    self.username = data['username']
-                    write_package(self.socket, PKG_HELLO_ACK, {'ok' : True})
-                else:
-                    write_package(self.socket, PKG_HELLO_ACK, {'ok' : False})
-            
-            # Get list of sessions
-            elif pkg_type == PKG_GET_SESSIONS:
-                print "Received PKG_GET_SESSIONS"
-                out = {'sessions': []}
-                for i in manager.ServerGames.keys():
-                    game = manager.ServerGames[i]
-                    out['sessions'].append( \
-                    (i, game.get_game_name(), game.get_cur_num_players(), game.get_num_players())) 
-                write_package(self.socket, PKG_SESSIONS, out)
-            
-            # Join existing session   
-            elif pkg_type == PKG_JOIN_SESSION:
-                print "Received PKG_JOIN_SESSION"
-                if data['uuid'] not in manager.ServerGames \
-                or manager.ServerGames[data['uuid']].is_full():
-                    write_package(self.socket, PKG_SESSION_JOINED, \
-                                  {'ok' : False, 'uuid' : data['uuid']})
-                else:
-                    game = manager.ServerGames[data['uuid']]
-                    game.join(self.username)
-                    write_package(self.socket, PKG_SESSION_JOINED, \
-                                  {'ok' : True, 'uuid' : data['uuid']})
-                    write_package(self.socket, PKG_SESSION_STARTED, {})             
-                    write_package(self.socket, PKG_SUDOKU_STATE, \
-                                  {'sudoku': game.get_sudoku().serialize()})
-                    write_package(self.socket, PKG_SCORES_STATE, {'scores': game.get_scores()})
-                        
-                    
-            # Create new session   
-            elif pkg_type == PKG_CREATE_SESSION:
-                print "Received PKG_CREATE_SESSION"
-                self.game = Game(data['name'], data['num_players'], self.username)
-                manager.ServerGames[self.game.get_uuid()] = self.game
-                write_package(self.socket, PKG_SESSION_JOINED, \
-                              {'ok' : True, 'uuid' : self.game.get_uuid()})           
-                write_package(self.socket, PKG_SESSION_STARTED, {})             
-                write_package(self.socket, PKG_SUDOKU_STATE, \
-                              {'sudoku': self.game.get_sudoku().serialize()})
-                write_package(self.socket, PKG_SCORES_STATE, {'scores': self.game.get_scores()})
-            
-            # Player suggest a number
-            elif pkg_type == PKG_SUGGEST_NUMBER:
-                # TODO add points to player
-                print "Received PKG_SUGGEST_NUMBER"
-                point, finish = self.game.insert_number(self.username, data['i'], \
-                                                        data['j'], data['number'])
-                write_package(self.socket, PKG_SUGGEST_NUMBER_ACK, \
-                              {'ok' : point > 0, 'i' : data['i'], 'j' : data['j']})
+        try:
+            stream = util.SocketWrapper(self.socket)
+            while not self.should_stop:
+                stream.receive()
+                if not stream.available():
+                    time.sleep(0.01)
+                    continue
                 
-                # Notify to everyone in the same game
-                manager.notify(self.game)
-                print "%s wrote %d in position (%d, %d) in the Sudoku with game uuid %s" % \
-                      (self.username, data['number'], data['i'], data['j'], self.game.get_uuid())
-                      
-            # Player wants to leave
-            elif pkg_type == PKG_LEAVE_SESSION:
-                print "Received PKG_LEAVE_SESSION"
-                finish = self.game.leave_game(self.username)
+                # Read incoming packet
+                pkg_type, data = read_package(stream)
+                
+                # Connection
+                if pkg_type == PKG_HELLO:
+                    if data['username'] not in manager.ServerUsernames:
+                        print "Received PKG_HELLO"
+                        manager.ServerUsernames.append(data['username'])
+                        self.username = data['username']
+                        write_package(self.socket, PKG_HELLO_ACK, {'ok' : True})
+                    else:
+                        write_package(self.socket, PKG_HELLO_ACK, {'ok' : False})
+                
+                # Get list of sessions
+                elif pkg_type == PKG_GET_SESSIONS:
+                    print "Received PKG_GET_SESSIONS"
+                    out = {'sessions': []}
+                    for i in manager.ServerGames.keys():
+                        self.game = manager.ServerGames[i]
+                        out['sessions'].append( \
+                        (i, self.game.get_game_name(), self.game.get_cur_num_players(),\
+                         self.game.get_num_players())) 
+                    write_package(self.socket, PKG_SESSIONS, out)
+                
+                # Join existing session   
+                elif pkg_type == PKG_JOIN_SESSION:
+                    print "Received PKG_JOIN_SESSION"
+                    if data['uuid'] not in manager.ServerGames \
+                    or manager.ServerGames[data['uuid']].is_full():
+                        write_package(self.socket, PKG_SESSION_JOINED, \
+                                      {'ok' : False, 'uuid' : data['uuid']})
+                    else:
+                        self.game = manager.ServerGames[data['uuid']]
+                        self.game.join(self.username)
+                        write_package(self.socket, PKG_SESSION_JOINED, \
+                                      {'ok' : True, 'uuid' : data['uuid']}) 
+                        
+                        if self.game.is_full():
+                            manager.start_game(self.game) 
+                                      
+                        write_package(self.socket, PKG_SUDOKU_STATE, \
+                                      {'sudoku': self.game.get_sudoku().serialize()})
+                        write_package(self.socket, PKG_SCORES_STATE, {'scores': self.game.get_scores()})      
+                        
+                # Create new session   
+                elif pkg_type == PKG_CREATE_SESSION:
+                    print "Received PKG_CREATE_SESSION"
+                    self.game = Game(data['name'], data['num_players'], self.username)
+                    manager.ServerGames[self.game.get_uuid()] = self.game
+                    write_package(self.socket, PKG_SESSION_JOINED, \
+                                  {'ok' : True, 'uuid' : self.game.get_uuid()})
+                    if self.game.is_full():
+                        manager.start_game(self.game)                       
+                    write_package(self.socket, PKG_SUDOKU_STATE, \
+                                  {'sudoku': self.game.get_sudoku().serialize()})
+                    write_package(self.socket, PKG_SCORES_STATE, {'scores': self.game.get_scores()})
+                    
+                    
+                # Player suggest a number
+                elif pkg_type == PKG_SUGGEST_NUMBER:
 
-            
-            if finish:
-                manager.game_over(self.game)
+                    print "Received PKG_SUGGEST_NUMBER"
+                    point, finish = self.game.insert_number(self.username, data['i'], \
+                                                            data['j'], data['number'])
+                    write_package(self.socket, PKG_SUGGEST_NUMBER_ACK, \
+                                  {'ok' : point > 0, 'i' : data['i'], 'j' : data['j']})
+                    
+                    # Notify to everyone in the same game
+                    manager.notify(self.game)
+                    print "%s wrote %d in position (%d, %d) in the Sudoku with game uuid %s" % \
+                          (self.username, data['number'], data['i'], data['j'], self.game.get_uuid())
+                          
+                # Player wants to leave
+                elif pkg_type == PKG_LEAVE_SESSION:
+                    print "Received PKG_LEAVE_SESSION"
+                    finish = self.game.leave_game(self.username)
 
-        self.socket.shutdown(SHUT_WR)
-        self.socket.close()
+                if finish:
+                    manager.game_over(self.game)
+
+            self.socket.shutdown(SHUT_WR)
+            self.socket.close()
+        
+        except Exception, msg:
+            print "Exception: %s" % msg
     
     def stop(self):
         self.should_stop = True
@@ -231,7 +244,9 @@ if __name__ == '__main__':
             print 'Ctrl+C issued ...'
             print 'Terminating server ...'
             break
-    
+        except Exception, msg:
+            print 'Exception %s' % msg
+            
     for i in manager.clients:
         i.stop()
         i.join()        
