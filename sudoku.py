@@ -88,7 +88,7 @@ class Sudoku():
                 start_grid, [9][9]
                 full_grid, [9][9]
         """
-        finished_grid = get_random_sudoku()
+        finished_grid = Sudoku.get_random_sudoku()
         game_grid = copy.deepcopy(finished_grid)
         coords = []
         for i in range(9):
