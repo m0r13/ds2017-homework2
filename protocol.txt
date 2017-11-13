@@ -16,9 +16,12 @@ OR
 Create new session:
 -> create_session(name, num_players)
 <- session_joined(ok, uuid)
+if game is full:
+    <- session_started()
 
 Session is joined:
-<- session_started()
+if game is full:
+    <- session_started()
 <- sudoku_state(sudoku : [i_1, i_2, ..., i_81])
 <- scores_state(scores : [(player_name, points), ...])
 
