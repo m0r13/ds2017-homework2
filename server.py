@@ -225,7 +225,7 @@ if __name__ == '__main__':
     
     manager = Manager()
     s = socket(AF_INET, SOCK_STREAM)
-    s.bind((SERVER_INET_ADDR, SERVER_PORT))
+    s.bind((args.host, args.port))
 
     backlog = 0 
     s.listen(backlog)
