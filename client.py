@@ -13,10 +13,12 @@ import util
 from PyQt4 import QtGui, QtCore
 
 class SudokuItemDelegate(QtGui.QItemDelegate):
+    """Helper class to style cells of 9x9 sudoku into 3x3 fields again."""
     def __init__(self, *args, **kwargs):
         super(QtGui.QItemDelegate, self).__init__(*args, **kwargs)
 
     def paint(self, painter, option, index):
+        """Custom paint method that handles drawing lines for 3x3 fields."""
         i, j = index.row(), index.column()
         r = option.rect
         pen = painter.pen()
@@ -29,12 +31,14 @@ class SudokuItemDelegate(QtGui.QItemDelegate):
         QtGui.QItemDelegate.paint(self, painter, option, index)
 
 class CreateSessionDialog(QtGui.QDialog):
+    """Custom dialog that is used to receive user input for creating a session."""
     def __init__(self, connection, *args, **kwargs):
         super(QtGui.QDialog, self).__init__(*args, **kwargs)
 
-        self.connection = connection
+        # data entered by user: when entered tuple (game name, number of players)
         self.data = None
 
+        # ui setup
         self.setModal(True)
 
         self.name = QtGui.QLineEdit()
@@ -55,24 +59,33 @@ class CreateSessionDialog(QtGui.QDialog):
         self.setLayout(layout)
 
     def onAccepted(self):
+        """Called when the OK-button is pressed."""
+        # take ui input
         name = str(self.name.text()).strip()
         numPlayers = int(self.numPlayers.value())
+        # validate ui input
         if not name:
             QtGui.QMessageBox.critical(self, "Name missing", "You have to insert a session name!")
             return
+        # save it, close dialog successfully
         self.data = (name, numPlayers)
         self.accept()
 
     def onRejected(self):
+        """Called when the cancel-button is pressed."""
+        # do nothing. just close dialog
         self.reject()
 
 class LobbyDialog(QtGui.QDialog):
+    """Custom dialog that is used to present running sessions to user and choice to join/create one."""
     def __init__(self, connection, *args, **kwargs):
         super(QtGui.QDialog, self).__init__(*args, **kwargs)
 
+        # connection to server
         self.connection = connection
         self.connection.sessionJoined.connect(self.onSessionJoined)
 
+        # ui setup
         self.setModal(True)
 
         self.list = QtGui.QListWidget()
@@ -91,14 +104,19 @@ class LobbyDialog(QtGui.QDialog):
         layout.addWidget(self.connectButton)
         self.setLayout(layout)
 
+        # load list of sessions in the beginning
         self.onReload()
 
     def onReload(self):
+        """Is called once reload button is clicked and at dialog setup."""
+        # request sessions, will be received in self.onSessionsReceived
         self.connection.sessionsReceived.connect(self.onSessionsReceived)
         self.connection.requestSessions()
 
     def onSessionsReceived(self, sessions):
+        """Is called when list of sessions has arrived from server."""
         self.connection.sessionsReceived.disconnect()
+        # clear list of sessions, load new list
         self.list.clear()
         for ident, name, cur_players, max_players in sessions:
             item = QtGui.QListWidgetItem("%s: %d/%d players" % (name, cur_players, max_players))
@@ -106,128 +124,44 @@ class LobbyDialog(QtGui.QDialog):
             self.list.addItem(item)
 
     def onCreateSession(self):
+        """Is called when the 'create session'-button is clicked."""
+        # create dialog that collects user input to create session
         dialog = CreateSessionDialog(self.connection, self)
         dialog.show()
         dialog.exec_()
         if dialog.result():
+            # when dialog input successful: create session on server
+            # dialog.data is tuple (session name, number of players) which are also arguments of createSession function
             self.connection.createSession(*dialog.data)
 
     def onConnect(self, _ = None):
+        """Is called when the connection button is pressed or an item
+        in the session list is double-clicked (unused argument _ is for that)."""
+        # get selection, make sure exactly one item is selected
         selection = self.list.selectedItems()
         if len(selection) != 1:
             QtGui.QMessageBox.critical(self, "Select a session", "You have to select a session!")
             return
         session = selection[0]
+        # get id of session, connect to it
         ident = str(session.data(QtCore.Qt.UserRole).toString())
         self.connection.joinSession(ident)
 
     def onSessionJoined(self, joined, ident):
+        """Is called when response from server after joining-session request arrived."""
+        # close the dialog if joining session was successful
+        # show error if session is already full
         if not joined:
             QtGui.QMessageBox.critical(self, "Session full", "Unable to join session!")
             return
         self.accept()
 
-class MockedNetworkThread(QtCore.QThread):
-
-    connected = QtCore.pyqtSignal()
-    disconnected = QtCore.pyqtSignal(str)
-    usernameAck = QtCore.pyqtSignal(bool)
-
-    sessionsReceived = QtCore.pyqtSignal(object)
-
-    sessionJoined = QtCore.pyqtSignal(bool, str)
-    sessionStarted = QtCore.pyqtSignal()
-    sudokuReceived = QtCore.pyqtSignal(object)
-    scoresReceived = QtCore.pyqtSignal(object)
-
-    suggestNumberAck = QtCore.pyqtSignal(int, int, bool)
-    gameOver = QtCore.pyqtSignal(str)
-
-    def __init__(self, host, port, *args, **kwargs):
-        super(QtCore.QThread, self).__init__(*args, **kwargs)
-
-        self.host = host
-        self.port = port
-        self.username = ""
-
-        self.sudoku = None
-        self.scores = None
-
-    def run(self):
-        time.sleep(0.1)
-        self.connected.emit()
-
-    def disconnect(self):
-        def disconnected():
-            self.disconnected.emit("Disconnected!")
-        QtCore.QTimer.singleShot(100, disconnected)
-
-    def setUsername(self, username):
-        self.username = username
-        def usernameAck():
-            ok = random.choice([True, True, True, False])
-            ok = True
-            self.usernameAck.emit(ok)
-        QtCore.QTimer.singleShot(100, usernameAck)
-
-    def requestSessions(self):
-        def sessions():
-            sessions = [
-                (0, "Brunos game", 2, 4),
-                (1, "Another game", 4, 4),
-            ]
-            self.sessionsReceived.emit(sessions)
-        QtCore.QTimer.singleShot(1000, sessions)
-
-    def _sessionJoined(self, ident):
-        def blah():
-            self.sessionJoined.emit(True, ident)
-            self.scores = [(self.username, 0)]
-            for i in range(3):
-                time.sleep(1)
-                self.scores.append((["test", "Bruno", "Sander"][i], 0))
-                self.scoresReceived.emit(self.scores)
-            self.sessionStarted.emit()
-            self.sudoku = [ [ (random.choice(list(range(1, 10))) if random.random() > 0.7 else 0) for j in range(9) ] for i in range(0, 9) ]
-            self.sudokuReceived.emit(self.sudoku)
-        threading.Thread(target=blah).start()
-
-    def joinSession(self, ident):
-        print "Joining session %d" % ident
-        def response():
-            if ident == 1:
-                self.sessionJoined.emit(False, -1)
-            else:
-                self._sessionJoined(ident)
-        QtCore.QTimer.singleShot(1000, response)
-
-    def createSession(self, name, numPlayers):
-        print "Creating session %s with %d players" % (name, numPlayers)
-        def response():
-            self._sessionJoined(42)
-        QtCore.QTimer.singleShot(1000, response)
-
-    def suggestNumber(self, i, j, number):
-        def response():
-            if random.choice([True, False]):
-                print "Number is ok!"
-                self.suggestNumberAck.emit(i, j, True)
-                self.scores[0] = (self.scores[0][0], self.scores[0][1] + 1)
-                self.sudoku[i][j] = number
-            else:
-                print "Number is not ok!"
-                self.suggestNumberAck.emit(i, j, False)
-                self.scores[0] = (self.scores[0][0], self.scores[0][1] - 1)
-            self.scoresReceived.emit(self.scores)
-            self.sudokuReceived.emit(self.sudoku)
-            if random.random() < 0.2:
-                self.gameOver.emit(self.username)
-        QtCore.QTimer.singleShot(300, response)
-
-    def leaveSession(self):
-        pass
-
 class NetworkThread(QtCore.QThread):
+    """Class that runs as thread and manages the connection to the sudoku server"""
+
+    # Qt signals that can one can subscribe to
+    # and that show the arrival of different packages from the server
+    # arguments are the fields of associated protocol packages
 
     connected = QtCore.pyqtSignal()
     disconnected = QtCore.pyqtSignal(str)
@@ -254,18 +188,26 @@ class NetworkThread(QtCore.QThread):
         self.username = ""
 
     def run(self):
+        """Mainloop of server connection."""
         try:
+            # try to connect to server
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
             self.socket.setblocking(False)
             stream = util.SocketWrapper(self.socket)
             self.connected.emit()
+
+            # handle packages in loop until disconnect
             while not self.stop:
+                # attempt to read data from the socket
                 stream.receive()
+                # while there is data available, read packages
                 while stream.available():
+                    # read package
                     pkg_type, data = protocol.read_package(stream)
                     print "Received: %d, %s" % (pkg_type, data)
 
+                    # depending on the package type, fire associated signal
                     if pkg_type == protocol.PKG_HELLO_ACK:
                         self.usernameAck.emit(data["ok"])
                     if pkg_type == protocol.PKG_SESSIONS:
@@ -275,6 +217,8 @@ class NetworkThread(QtCore.QThread):
                     if pkg_type == protocol.PKG_SESSION_STARTED:
                         self.sessionStarted.emit()
                     if pkg_type == protocol.PKG_SUDOKU_STATE:
+                        # sudoku state arrives as flattened array with 89 ints
+                        # --> convert it to 9x9 array
                         sudoku = []
                         for i in range(9):
                             sudoku.append(data["sudoku"][(i*9):(i*9+9)])
@@ -283,19 +227,30 @@ class NetworkThread(QtCore.QThread):
                         self.scoresReceived.emit(data["scores"])
                     if pkg_type == protocol.PKG_SUGGEST_NUMBER_ACK:
                         self.suggestNumberAck.emit(data["i"], data["j"], data["ok"])
+                    if pkg_type == protocol.PKG_GAME_OVER:
+                        self.gameOver.emit(data["winner"])
 
+                # then send packages to server that are in queue
                 while not self.package_queue.empty():
                     pkg_type, data = self.package_queue.get()
                     print "Writing: %d, %s" % (pkg_type, data)
                     protocol.write_package(stream, pkg_type, data)
 
+                # then wait a bit
                 time.sleep(0.01)
 
+            # disconnect
             self.socket.close()
             self.disconnected.emit("Disconnected!")
         except socket.error, e:
+            # handle possible socket errors
             traceback.print_exc()
             self.disconnected.emit(str(e))
+
+    """Following functions are actions that the client can perform on the server.
+    To send package data over the socket to the server in the server-connection thread,
+    packages beloging to specific actions are put into a queue by the ui thread which
+    are then sent by the server-connection thread."""
 
     def disconnect(self):
         self.stop = True
@@ -316,15 +271,19 @@ class NetworkThread(QtCore.QThread):
         self.package_queue.put((protocol.PKG_SUGGEST_NUMBER, {"i" : i, "j" : j, "number" : number}))
 
     def leaveSession(self):
-        pass
+        self.package_queue.put((protocol.PKG_LEAVE_SESSION, {}))
 
 class MainWindow(QtGui.QMainWindow):
+    """Main sudoku game window."""
 
+    """Time in milliseconds that number suggestions by the player
+    are highlighted depending on server response (right number / wrong number)."""
     NUMBER_ACK_HIGHLIGHT_TIME = 1000
 
     def __init__(self, *args, **kwargs):
         super(QtGui.QMainWindow, self).__init__(*args, **kwargs)
 
+        # ui setup
         self.list = QtGui.QListWidget()
         self.leaveSessionButton = QtGui.QPushButton("Leave session")
         self.leaveSessionButton.setEnabled(False)
@@ -344,7 +303,7 @@ class MainWindow(QtGui.QMainWindow):
         self.table.setItemDelegate(SudokuItemDelegate())
         self.table.resizeColumnsToContents()
         self.table.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
-        self.table.cellChanged.connect(self.cellChanged)
+        self.table.cellChanged.connect(self.doSuggestNumber)
  
         layout = QtGui.QHBoxLayout()
         leftLayout = QtGui.QVBoxLayout()
@@ -366,13 +325,19 @@ class MainWindow(QtGui.QMainWindow):
         self.setSudokuState([[0]*9] * 9)
         self.table.setEnabled(False)
 
+        # start sudoku game state machine with server connection dialog
+        # for ui fancyfying: show it after window is actually visible
         QtCore.QTimer.singleShot(10, self.doConnect)
 
     def doConnect(self):
+        """Called at the start of application or when server connection is lost / disconnected."""
+        # request server address
         address, ok = QtGui.QInputDialog.getText(self, "Server address", "Please enter the server address and port (host:port):", QtGui.QLineEdit.Normal, "localhost:8888")
+        # close application if cancel was pressed
         if not ok:
             self.close()
             return
+        # validate address / port
         address = str(address)
         host, port = address, protocol.SERVER_PORT
         if ":" in address:
@@ -380,8 +345,10 @@ class MainWindow(QtGui.QMainWindow):
             port = int(port)
 
         self.status.showMessage("Connecting...")
-        # TODO check if there is already a connection / thread ?
+        # there may be no server connection thread active at this point
         assert self.thread is None
+        # create thread that handles connection to server
+        # connect signals of thread to ui methods handling them
         self.thread = NetworkThread(host, port)
         self.thread.connected.connect(self.onConnected)
         self.thread.disconnected.connect(self.onDisconnected)
@@ -394,7 +361,17 @@ class MainWindow(QtGui.QMainWindow):
         self.thread.gameOver.connect(self.onGameOver)
         self.thread.start()
 
+    def onConnected(self):
+        """Is called when the client is connected to the server."""
+        # ui status handling
+        self.disconnectButton.setEnabled(True)
+        self.status.showMessage("Connected")
+        # next step: request username
+        self.doRequestUsername()
+
     def doRequestUsername(self):
+        """Is called when the client is connected to the server and a username shall be sent to the server"""
+        # request username in ui from user
         name, ok = "", False
         while not ok:
             name, ok = QtGui.QInputDialog.getText(self, "Username", "Please enter your username:", QtGui.QLineEdit.Normal, "ricky.a87")
@@ -402,26 +379,31 @@ class MainWindow(QtGui.QMainWindow):
             ok = ok and bool(name)
             if not ok:
                 QtGui.QMessageBox.critical(self, "Username required", "You have to enter a username!")
+        # send to server
         self.thread.setUsername(name)
 
-    def onConnected(self):
-        self.disconnectButton.setEnabled(True)
-        self.status.showMessage("Connected")
-        self.doRequestUsername()
-
     def onUsernameAck(self, ok):
+        """Is called when the username was sent to the server and the server acknowledged that."""
+        # username is not taken yet -> ok -> go to "lobby" (list / join / create session)
         if ok:
             self.status.showMessage("Connected as %s" % self.thread.username)
             self.doLobby()
+        # username is taken yet. show error and let user try it again
         else:
             QtGui.QMessageBox.critical(self, "Username taken", "The username is already taken! Please try another one.")
             self.doRequestUsername()
 
     def doLobby(self):
+        """Is called when the client has successfully chosen a username on the server and 
+        can now list / join / create sessions."""
+        # TODO status
         self.setScoresState([])
         self.setSudokuState([[0]*9] * 9)
         self.table.setEnabled(False)
 
+        # show LobbyDialog to user that handles listing / joining / creating sessions
+        # if user closes it, ask user if he wants to disconnect.
+        # otherwise show again until a session was joined
         result = False
         while not result:
             dialog = LobbyDialog(self.thread, self)
@@ -435,28 +417,63 @@ class MainWindow(QtGui.QMainWindow):
                     return
 
     def onSessionJoined(self, ok, ident):
-        # TODO connect this!
-        self.leaveSessionButton.setEnabled(True)
+        """Is called when the client has requested to join a session and the server acknowledged that request."""
+        # showing error message in case joining session was not possible is handled by lobby dialog
+        if ok:
+            self.leaveSessionButton.setEnabled(True)
 
     def onSessionStarted(self):
+        """Is called when the server has started the session."""
         self.table.setEnabled(True)
 
     def onSudokuReceived(self, sudoku):
+        """Is called when the server has updated the sudoku field."""
+        # set data in ui
         self.setSudokuState(sudoku)
 
     def onScoresReceived(self, scores):
+        """Is called when the server has updated the scores."""
+        # set data in ui
         self.setScoresState(scores)
 
+    def doSuggestNumber(self, i, j):
+        """Is called when the user changed a cell in the sudoku table
+        which requires sending a number suggest to the server."""
+        print "Cell %d:%d changed" % (i, j)
+        # get entered value, validate it
+        item = self.table.item(i, j)
+        x = str(item.text()).strip()
+        if not x:
+            return
+        if x in map(str, range(1, 10)):
+            x = int(x)
+            print "Suggest value %d" % x
+            # send suggestion to server
+            self.thread.suggestNumber(i, j, x)
+        else:
+            print "Invalid value '%s'!" % x
+        # reset value entered by user
+        # block signals to not trigger another item change signal
+        self.table.blockSignals(True)
+        item.setText("")
+        self.table.blockSignals(False)
+
     def onSuggestNumberAck(self, i, j, ok):
+        """Is called when the server has acknowledged a number suggestion."""
+        # highlight colors depending on good/bad suggestion
         red = QtGui.QBrush(QtGui.QColor.fromRgb(255, 0, 0, 128))
         green = QtGui.QBrush(QtGui.QColor.fromRgb(0, 255, 0, 128))
         color = green if ok else red
 
+        # highlight item in sudoku table
         item = self.table.item(i, j)
         originalBg = item.background()
+        # block signals otherwise change signal of item will be fired
+        # and counted as edit of user
         self.table.blockSignals(True)
         item.setBackground(color)
         self.table.blockSignals(False)
+        # also reset highlighting after some time
         def resetHighlight(item=item, bg=originalBg):
             self.table.blockSignals(True)
             item.setBackground(bg)
@@ -465,56 +482,58 @@ class MainWindow(QtGui.QMainWindow):
         print "Suggest number ack: %d %d -> %d" % (i, j, ok)
 
     def doLeaveSession(self):
+        """Is called when the user requests to leave the session."""
         self.leaveSessionButton.setEnabled(False)
+        # send session leave request to server and show sessions again then
+        self.thread.leaveSession()
         self.doLobby()
 
     def onGameOver(self, winner):
+        """Is called when the server announced that a game is over."""
         self.leaveSessionButton.setEnabled(False)
+        print "Game over!!!!"
+        # show username of the winner and show sessions again then
         QtGui.QMessageBox.information(self, "Game is over", "The game is over. Winner is: %s" % winner)
         self.doLobby()
 
     def doDisconnect(self):
+        """Is called when the user requests to disconnect from the server."""
+        # TODO state
         self.leaveSessionButton.setEnabled(False)
         self.setScoresState([])
         self.setSudokuState([[0]*9] * 9)
         self.table.setEnabled(False)
+        # tell server connection to disconnect
         self.thread.disconnect()
 
     def onDisconnected(self, reason):
+        """Is called when the client is disconnected from the server."""
         self.disconnectButton.setEnabled(False)
 
+        # wait until thread is finished, destroy it then
         self.thread.wait()
         self.thread = None
+        # show disconnection reason and then ask user for new server address again
         QtGui.QMessageBox.information(self, "Disconnected", "Disconnected from server:\n" + reason)
         self.doConnect()
 
-    def cellChanged(self, i, j):
-        print "Cell %d:%d changed" % (i, j)
-        item = self.table.item(i, j)
-        x = str(item.text()).strip()
-        if not x:
-            return
-        if x in map(str, range(1, 10)):
-            x = int(x)
-            print "Suggest value %d" % x
-            self.thread.suggestNumber(i, j, x)
-        else:
-            print "Invalid value '%s'!" % x
-        self.table.blockSignals(True)
-        item.setText("")
-        self.table.blockSignals(False)
-
     def setScoresState(self, scores):
+        """Sets the value of the scores list."""
         self.list.clear()
         for player, points in scores:
             self.list.addItem("%s: %s points" % (player, points))
 
     def setSudokuState(self, sudoku):
+        """Sets the value of the sudoku table."""
+        # first of all: block signals so that item changes don't trigger change signals
         self.table.blockSignals(True)
         for i in range(0, 9):
             for j in range(0, 9):
+                # get sudoku value at row i, column j
+                # get table item at that position
                 x = sudoku[i][j]
                 item = self.table.item(i, j)
+                # set value, make it editable if there is no number yet
                 flags = item.flags()
                 if x == 0:
                     item.setText("")
@@ -526,25 +545,12 @@ class MainWindow(QtGui.QMainWindow):
                 item.setFlags(flags)
         self.table.blockSignals(False)
 
-    def getSudokuState(self):
-        sudoku = []
-        for i in range(0, 9):
-            row = []
-            for j in range(0, 9):
-                text = self.table.item(i, j).text()
-                if text == "":
-                    row.append(0)
-                else:
-                    row.append(int(text))
-            sudoku.append(row)
-        return sudoku
-
-
 def sigint_handler(*args):
     sys.stderr.write('Got SIGINT, quitting...')
     QtGui.QApplication.quit()
-        
+
 if __name__ == "__main__":
+    # create qt application, main window, run app
     signal.signal(signal.SIGINT, sigint_handler)
     app = QtGui.QApplication(sys.argv)
     main = MainWindow()
