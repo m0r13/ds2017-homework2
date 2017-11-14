@@ -62,7 +62,25 @@ class Sudoku():
         for i in range(9):
             serialized.extend(self.__game_grid[i])
         return serialized
-
+    
+    @staticmethod
+    def get_random_sudoku():
+        f = open("sudoku.txt", "r")
+        f.seek(random.randint(0, 9999) * 83, 0)
+        line = f.readline()
+        s = [i for i in line]
+        s = s[:-2]
+        sudoku=[]
+        count = 0
+        for i in range(0, 9):
+            row = []
+            for j in range(0, 9):
+                row.append(int(s[count]))
+                count += 1
+            sudoku.append(row)
+        f.close()
+        return sudoku 
+    
     @staticmethod
     def generate_grid(num_zeros):
         """generate a sudoku grid
@@ -70,7 +88,7 @@ class Sudoku():
                 start_grid, [9][9]
                 full_grid, [9][9]
         """
-        finished_grid = SUDOKU_TEMPLATE
+        finished_grid = Sudoku.get_random_sudoku()
         game_grid = copy.deepcopy(finished_grid)
         coords = []
         for i in range(9):
