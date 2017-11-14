@@ -8,7 +8,9 @@ Implementation of a concurrent Sudoku solver
 
 ## Instructions
 - Requires module [PyQt4](https://www.riverbankcomputing.com/software/pyqt/download) for the client GUI
-
+```
+apt-get install python-qt4
+```
 - Run server: 
 ```
 server.py [-h] [-v] [-H HOST] [-p PORT]
