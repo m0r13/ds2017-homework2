@@ -371,14 +371,14 @@ class MainWindow(QtGui.QMainWindow):
         # request username in ui from user
         name, ok = "", False
         while not ok:
-            name, ok = QtGui.QInputDialog.getText(self, "Username", "Please enter your username:", QtGui.QLineEdit.Normal, "ricky.a87")
+            name, ok = QtGui.QInputDialog.getText(self, "Username", "Please enter your username:", QtGui.QLineEdit.Normal, "rickya87")
             # connection lost in-between, just return from here
             if not ok and not self.connection:
                 return
             name = str(name).strip()
-            ok = ok and bool(name)
+            ok = ok and bool(name) and len(name) <= 8 and name.isalnum()
             if not ok:
-                QtGui.QMessageBox.critical(self, "Username required", "You have to enter a username!")
+                QtGui.QMessageBox.critical(self, "Username required", "You have to enter a valid username (max. 8 characters, alphanumeric, no spaces)!")
                 # connection lost
                 if not self.connection:
                     return

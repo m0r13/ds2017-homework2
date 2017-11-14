@@ -44,6 +44,7 @@ Use Cases:
 * Username is sent to server. Server checks if not in use already
   * If in use already: Server sends error message, user has to enter new username
 * Lobby dialog: Running sessions are shown to the user (with name, current players, max players)
+* If the lobby dialog is closed by the user, the UI offers the user to disconnect from the server
 * User can reload sessions
 * User can create session
   * Another dialog opens, session name / max players must be entered
