@@ -2,10 +2,12 @@ import io
 import socket
 import struct
 
+# some constants
 SERVER_INET_ADDR = "127.0.0.1"
 SERVER_PORT = 8888
 TCP_RECEIVE_BUFFER_SIZE = 1024
 
+# types of packages
 PKG_HELLO = 0
 PKG_HELLO_ACK = 1
 PKG_GET_SESSIONS = 2
@@ -22,6 +24,8 @@ PKG_LEAVE_SESSION = 12
 PKG_GAME_OVER = 13
 
 def read_bytes(stream, n):
+    """Reads exactly n bytes from a stream.
+    Blocks until all bytes are read and then returns them."""
     data = bytes()
     while len(data) != n:
         d = stream.recv(n - len(data))
@@ -30,32 +34,45 @@ def read_bytes(stream, n):
     return data
 
 def read_int(stream):
+    """Reads a 4-byte integer (network byte order) from a stream."""
     data = read_bytes(stream, 4)
-    #data = stream.read(4)
     i, = struct.unpack("!i", data)
     return i
 
 def read_bool(stream):
+    """Reads a boolean from a stream. It is encoded as an integer (value 0 or 1)."""
     return bool(read_int(stream))
 
 def read_string(stream):
+    """Reads a string from a stream. It is encoded as length (integer)
+    followed by length number of characters."""
     length = read_int(stream)
     s = read_bytes(stream, length)
-    #s = stream.read(length)
     return s.decode("utf-8")
 
 def write_int(stream, value):
+    """Writes an integer analogous to the read_int method."""
     data = struct.pack("!i", value)
     stream.sendall(data)
-    #stream.write(data)
 
 def write_bool(stream, value):
+    """Writes a boolean analogous to the read_bool method."""
     write_int(stream, int(value))
 
 def write_string(stream, value):
+    """Writes a string analogous to the read_string method."""
     write_int(stream, len(value))
     stream.sendall(value)
-    #stream.write(value)
+
+"""Following functions define the different packages being used.
+For each package there is a read and a write method.
+
+The write method gets a stream and a data dictionary with package fields passed.
+It is also possible to use the generic write_package method with
+a package type id and data dictionary.
+
+The read method gets a stream to read from passed. Do not use the
+read methods manually, instead see read_package below."""
 
 #####
 
@@ -237,6 +254,9 @@ def read_game_over(stream):
 
 #####
 
+"""
+Associations of read/write methods of packages to package ids.
+"""
 PACKAGES = {
     PKG_HELLO : (write_hello, read_hello),
     PKG_HELLO_ACK : (write_hello_ack, read_hello_ack),
@@ -255,6 +275,11 @@ PACKAGES = {
 }
 
 def read_package(stream):
+    """Reads a package from a stream.
+    First reads the package type and then uses the according
+    read method of the package type to parse the payload.
+    Returns a tuple (package type id, data dictionary)."""
+
     data = {}
     pkg_type = read_int(stream)
 
@@ -264,6 +289,9 @@ def read_package(stream):
     return pkg_type, data
 
 def write_package(stream, pkg_type, data):
+    """Writes a package (with package type id and data dictionary) to a stream.
+    Works analogous to the read_package method, just that package write
+    methods handle writing the package type id."""
     assert pkg_type in PACKAGES
     PACKAGES[pkg_type][0](stream, data)
 

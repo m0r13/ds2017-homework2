@@ -303,6 +303,7 @@ class MainWindow(QtGui.QMainWindow):
         self.table.setItemDelegate(SudokuItemDelegate())
         self.table.resizeColumnsToContents()
         self.table.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        # call function self.doSuggestNumber when a cell of the sudoku table is edited by the user
         self.table.cellChanged.connect(self.doSuggestNumber)
  
         layout = QtGui.QHBoxLayout()
@@ -316,14 +317,11 @@ class MainWindow(QtGui.QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
-        self.status = QtGui.QStatusBar()
-        self.setStatusBar(self.status)
+        self.disableGame()
 
-        self.thread = None
-
-        self.setScoresState([])
-        self.setSudokuState([[0]*9] * 9)
-        self.table.setEnabled(False)
+        # connection to server
+        # will be instance of ServerThread
+        self.connection = None
 
         # start sudoku game state machine with server connection dialog
         # for ui fancyfying: show it after window is actually visible
@@ -344,28 +342,26 @@ class MainWindow(QtGui.QMainWindow):
             host, port = address.split(":")
             port = int(port)
 
-        self.status.showMessage("Connecting...")
         # there may be no server connection thread active at this point
-        assert self.thread is None
+        assert self.connection is None
         # create thread that handles connection to server
         # connect signals of thread to ui methods handling them
-        self.thread = NetworkThread(host, port)
-        self.thread.connected.connect(self.onConnected)
-        self.thread.disconnected.connect(self.onDisconnected)
-        self.thread.usernameAck.connect(self.onUsernameAck)
-        self.thread.sessionJoined.connect(self.onSessionJoined)
-        self.thread.sessionStarted.connect(self.onSessionStarted)
-        self.thread.sudokuReceived.connect(self.onSudokuReceived)
-        self.thread.scoresReceived.connect(self.onScoresReceived)
-        self.thread.suggestNumberAck.connect(self.onSuggestNumberAck)
-        self.thread.gameOver.connect(self.onGameOver)
-        self.thread.start()
+        self.connection = NetworkThread(host, port)
+        self.connection.connected.connect(self.onConnected)
+        self.connection.disconnected.connect(self.onDisconnected)
+        self.connection.usernameAck.connect(self.onUsernameAck)
+        self.connection.sessionJoined.connect(self.onSessionJoined)
+        self.connection.sessionStarted.connect(self.onSessionStarted)
+        self.connection.sudokuReceived.connect(self.onSudokuReceived)
+        self.connection.scoresReceived.connect(self.onScoresReceived)
+        self.connection.suggestNumberAck.connect(self.onSuggestNumberAck)
+        self.connection.gameOver.connect(self.onGameOver)
+        self.connection.start()
 
     def onConnected(self):
         """Is called when the client is connected to the server."""
         # ui status handling
         self.disconnectButton.setEnabled(True)
-        self.status.showMessage("Connected")
         # next step: request username
         self.doRequestUsername()
 
@@ -380,13 +376,12 @@ class MainWindow(QtGui.QMainWindow):
             if not ok:
                 QtGui.QMessageBox.critical(self, "Username required", "You have to enter a username!")
         # send to server
-        self.thread.setUsername(name)
+        self.connection.setUsername(name)
 
     def onUsernameAck(self, ok):
         """Is called when the username was sent to the server and the server acknowledged that."""
         # username is not taken yet -> ok -> go to "lobby" (list / join / create session)
         if ok:
-            self.status.showMessage("Connected as %s" % self.thread.username)
             self.doLobby()
         # username is taken yet. show error and let user try it again
         else:
@@ -396,17 +391,15 @@ class MainWindow(QtGui.QMainWindow):
     def doLobby(self):
         """Is called when the client has successfully chosen a username on the server and 
         can now list / join / create sessions."""
-        # TODO status
-        self.setScoresState([])
-        self.setSudokuState([[0]*9] * 9)
-        self.table.setEnabled(False)
+        # ui updates
+        self.disableGame()
 
         # show LobbyDialog to user that handles listing / joining / creating sessions
         # if user closes it, ask user if he wants to disconnect.
         # otherwise show again until a session was joined
         result = False
         while not result:
-            dialog = LobbyDialog(self.thread, self)
+            dialog = LobbyDialog(self.connection, self)
             dialog.show()
             dialog.exec_()
             result = dialog.result()
@@ -420,10 +413,13 @@ class MainWindow(QtGui.QMainWindow):
         """Is called when the client has requested to join a session and the server acknowledged that request."""
         # showing error message in case joining session was not possible is handled by lobby dialog
         if ok:
+            # ui updates
+            self.list.setEnabled(True)
             self.leaveSessionButton.setEnabled(True)
 
     def onSessionStarted(self):
         """Is called when the server has started the session."""
+        # ui updates
         self.table.setEnabled(True)
 
     def onSudokuReceived(self, sudoku):
@@ -449,7 +445,7 @@ class MainWindow(QtGui.QMainWindow):
             x = int(x)
             print "Suggest value %d" % x
             # send suggestion to server
-            self.thread.suggestNumber(i, j, x)
+            self.connection.suggestNumber(i, j, x)
         else:
             print "Invalid value '%s'!" % x
         # reset value entered by user
@@ -485,13 +481,12 @@ class MainWindow(QtGui.QMainWindow):
         """Is called when the user requests to leave the session."""
         self.leaveSessionButton.setEnabled(False)
         # send session leave request to server and show sessions again then
-        self.thread.leaveSession()
+        self.connection.leaveSession()
         self.doLobby()
 
     def onGameOver(self, winner):
         """Is called when the server announced that a game is over."""
         self.leaveSessionButton.setEnabled(False)
-        print "Game over!!!!"
         # show username of the winner and show sessions again then
         QtGui.QMessageBox.information(self, "Game is over", "The game is over. Winner is: %s" % winner)
         self.doLobby()
@@ -499,20 +494,18 @@ class MainWindow(QtGui.QMainWindow):
     def doDisconnect(self):
         """Is called when the user requests to disconnect from the server."""
         # TODO state
+        self.disableGame()
         self.leaveSessionButton.setEnabled(False)
-        self.setScoresState([])
-        self.setSudokuState([[0]*9] * 9)
-        self.table.setEnabled(False)
         # tell server connection to disconnect
-        self.thread.disconnect()
+        self.connection.disconnect()
 
     def onDisconnected(self, reason):
         """Is called when the client is disconnected from the server."""
         self.disconnectButton.setEnabled(False)
 
         # wait until thread is finished, destroy it then
-        self.thread.wait()
-        self.thread = None
+        self.connection.wait()
+        self.connection = None
         # show disconnection reason and then ask user for new server address again
         QtGui.QMessageBox.information(self, "Disconnected", "Disconnected from server:\n" + reason)
         self.doConnect()
@@ -545,8 +538,15 @@ class MainWindow(QtGui.QMainWindow):
                 item.setFlags(flags)
         self.table.blockSignals(False)
 
+    def disableGame(self):
+        """Disables the scores list and sudoku table, and clears both."""
+        self.setScoresState([])
+        self.setSudokuState([[0]*9] * 9)
+        self.list.setEnabled(False)
+        self.table.setEnabled(False)
+
 def sigint_handler(*args):
-    sys.stderr.write('Got SIGINT, quitting...')
+    sys.stderr.write("Got SIGINT, quitting...")
     QtGui.QApplication.quit()
 
 if __name__ == "__main__":
