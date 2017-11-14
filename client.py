@@ -322,6 +322,7 @@ class MainWindow(QtGui.QMainWindow):
         # connection to server
         # will be instance of ServerThread
         self.connection = None
+        self.openedDialog = None
 
         # start sudoku game state machine with server connection dialog
         # for ui fancyfying: show it after window is actually visible
@@ -371,10 +372,16 @@ class MainWindow(QtGui.QMainWindow):
         name, ok = "", False
         while not ok:
             name, ok = QtGui.QInputDialog.getText(self, "Username", "Please enter your username:", QtGui.QLineEdit.Normal, "ricky.a87")
+            # connection lost in-between, just return from here
+            if not ok and not self.connection:
+                return
             name = str(name).strip()
             ok = ok and bool(name)
             if not ok:
                 QtGui.QMessageBox.critical(self, "Username required", "You have to enter a username!")
+                # connection lost
+                if not self.connection:
+                    return
         # send to server
         self.connection.setUsername(name)
 
@@ -386,6 +393,9 @@ class MainWindow(QtGui.QMainWindow):
         # username is taken yet. show error and let user try it again
         else:
             QtGui.QMessageBox.critical(self, "Username taken", "The username is already taken! Please try another one.")
+            # connection lost
+            if not self.connection:
+                return
             self.doRequestUsername()
 
     def doLobby(self):
@@ -404,6 +414,9 @@ class MainWindow(QtGui.QMainWindow):
             dialog.exec_()
             result = dialog.result()
             if not result:
+                # connection was lost in-between
+                if not self.connection:
+                    return
                 r = QtGui.QMessageBox.question(self, "Disconnect from server", "Do you want to disconnect from the server?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
                 if r == QtGui.QMessageBox.Yes:
                     self.doDisconnect()
@@ -489,6 +502,9 @@ class MainWindow(QtGui.QMainWindow):
         self.leaveSessionButton.setEnabled(False)
         # show username of the winner and show sessions again then
         QtGui.QMessageBox.information(self, "Game is over", "The game is over. Winner is: %s" % winner)
+        # connection lost
+        if not self.connection:
+            return
         self.doLobby()
 
     def doDisconnect(self):
@@ -506,6 +522,12 @@ class MainWindow(QtGui.QMainWindow):
         # wait until thread is finished, destroy it then
         self.connection.wait()
         self.connection = None
+        # if there is a dialog open: close it
+        # will be handled as self.connection == None after it
+        for widget in QtGui.QApplication.allWidgets():
+            if isinstance(widget, QtGui.QDialog):
+                widget.reject()
+                widget.close()
         # show disconnection reason and then ask user for new server address again
         QtGui.QMessageBox.information(self, "Disconnected", "Disconnected from server:\n" + reason)
         self.doConnect()
