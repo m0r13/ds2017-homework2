@@ -30,6 +30,12 @@ class Manager():
         self.ServerUsernames = [] 
         print "Created manager"
     
+    def notify_scores(self, game):
+        """ Notify all users in the same game about the scores"""
+        for i in self.clients:
+            if game.get_uuid() == i.game.get_uuid():
+                write_package(i.socket, PKG_SCORES_STATE, {'scores': game.get_scores()})
+                
     def notify(self, game):
         """ Notify all users in the same game about the changes in the sudoku"""
         for i in self.clients:
@@ -190,7 +196,7 @@ class ClientThread(threading.Thread):
                                       
                         write_package(self.socket, PKG_SUDOKU_STATE, \
                                       {'sudoku': self.game.get_sudoku().serialize()})
-                        write_package(self.socket, PKG_SCORES_STATE, {'scores': self.game.get_scores()})      
+                        manager.notify_score(self.game)      
                         
                 # Create new session   
                 elif pkg_type == PKG_CREATE_SESSION:
