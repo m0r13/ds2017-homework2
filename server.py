@@ -234,11 +234,12 @@ class ClientThread(threading.Thread):
 
                     if finish:
                         manager.game_over(self.game)
-
+            
             self.socket.shutdown(SHUT_WR)
             self.socket.close()
         
         except Exception, msg:
+            self.game.remove_client(self.username)
             print "Exception: %s" % msg
     
     def stop(self):
