@@ -240,6 +240,7 @@ class NetworkThread(QtCore.QThread):
                 time.sleep(0.01)
 
             # disconnect
+            self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
             self.disconnected.emit("Disconnected!")
         except socket.error, e:
