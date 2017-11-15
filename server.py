@@ -13,23 +13,25 @@ optional arguments:
   -p PORT, --port PORT  Server TCP port, defaults to 8888
 """
 
-import time, threading, uuid, util
-from protocol import *
-from sudoku import *
-from socket import AF_INET, SOCK_STREAM, SHUT_WR, socket
-from argparse import ArgumentParser # Parsing command line arguments
+import time, threading, uuid, util                          # Miscellaneous utils
+from protocol import *                                      # Import our own protocol class
+from sudoku import *                                        # Import our own sudoku class
+from socket import AF_INET, SOCK_STREAM, SHUT_WR, socket    # Used for TCP networking
+from argparse import ArgumentParser                         # Parsing command line arguments
 
 class Manager():
     """Contains the global variables for the server,
     acts as manager and is passed to all Threads"""
     
     def __init__(self):
+        """Manager constructor, shared variables for the threads"""
         self.ServerGames = {}
         self.clients = []
         self.ServerUsernames = [] 
         print "Created manager"
     
     def notify(self, game):
+        """ Notify all users in the same game about the changes in the sudoku"""
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_SUDOKU_STATE, \
@@ -37,17 +39,20 @@ class Manager():
                 write_package(i.socket, PKG_SCORES_STATE, {'scores': game.get_scores()})
         
     def game_over(self, game):
+        """ Notify all users in the same game when game is over"""
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_GAME_OVER, {'winner': game.get_scores()[0][0]})
         print "Game over, game uuid: %s" % game.get_uuid()
                  
     def remove_client(self, username):
+        """Remove client from game"""
         for i in range(0, len(self.clients)):
             if self.clients[i].username == username:
                 del self.clients[i]
     
     def start_game(self, game):
+        """Send the start packet, used when game is full of players"""
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_SESSION_STARTED, {})
@@ -55,10 +60,10 @@ class Manager():
              
 class Game():
     """Represents the sudoku game on the server side.
-    Creates a sudoku object and keeps track of points
-    """
+    Creates a sudoku object and keeps track of points"""
     
     def __init__(self, name, num_players, username):
+        """Game constructor, initialize Sudoku game and its needed variables"""
         self.__num_players = num_players
         self.__uuid = str(uuid.uuid4())
         self.__sudoku = Sudoku()
@@ -68,42 +73,61 @@ class Game():
               (name, username, num_players, self.__uuid)
     
     def join(self, username):
+        """Used to make a new user join the game"""
         assert(not self.is_full())
         self.__users[username] = 0
 
     def get_uuid(self):
+        """Returns the unique identifier of the game"""
         return self.__uuid
 
     def get_sudoku(self):
+        """Returns the Sudoku object of the game"""
         return self.__sudoku
 
     def get_scores(self):
+        """Returns an array tuples of the users with their score. 
+        Sorted from winner to loser (big to small score)"""
         return sorted(self.__users.items(), key = lambda i: i[1]) # convert dict to array of tuples
 
     def get_num_players(self):
+        """Returns the maximal number of players in this game"""
         return self.__num_players    
 
     def get_cur_num_players(self):
+        """Returns the current number of players in this game"""
         return len(self.__users)
 
     def is_full(self):
+        """Returns true if current number of players == maximal number of players"""
         return len(self.__users) == self.__num_players
         
     def insert_number(self, username, i, j, number):
+        """Used to insert a number in the Sudoku grid, returns:
+             1  if valid
+             0  if already in the grid
+            -1  if not valid
+        Updates the users points and also returns True if game is finished"""
         point, finish = self.__sudoku.insert(i, j, number)
         self.__users[username] += point
         return point, finish
         
     def leave_game(self, username):
+        """Used to leave the game, returns True if only 1 player left"""
         del self.__users[username]
         return self.get_cur_num_players() == 1
 
-    def get_game_name(self):    
+    def get_game_name(self):
+        """Returns the given name for a game"""  
         return self.__game_name
 
 class ClientThread(threading.Thread):
+    """Thread object, one for each new client. Used to respond to clients requests"""
     
     def __init__(self, client_socket, client_address, manager):
+        """Constructor. Keep information about the client
+        like username and which game he's in"""
+        
         threading.Thread.__init__(self)
         self.username = None
         self.socket = client_socket
@@ -112,7 +136,9 @@ class ClientThread(threading.Thread):
         self.game = None
         self.should_stop = False
     
-    def run(self): # Dispatch cases
+    def run(self): 
+        """Dispatch cases according to packet type and according to protocol.txt"""
+        
         finish = False 
         try:
             stream = util.SocketWrapper(self.socket)
@@ -209,10 +235,12 @@ class ClientThread(threading.Thread):
             print "Exception: %s" % msg
     
     def stop(self):
+        """Check if thread has to stop"""
         self.should_stop = True
 
 
 if __name__ == '__main__':
+    """Server entry point"""
     
     # Parse args
     parser = ArgumentParser(description="Concurrent Sudoku", version = "1.0")
@@ -223,7 +251,10 @@ if __name__ == '__main__':
                         'defaults to %d' % SERVER_PORT, default=SERVER_PORT)
     args = parser.parse_args()
     
+    # Create Manager 
     manager = Manager()
+    
+    # Create and bind to server socket to listen to requests
     s = socket(AF_INET, SOCK_STREAM)
     s.bind((args.host, args.port))
 
@@ -246,12 +277,15 @@ if __name__ == '__main__':
             break
         except Exception, msg:
             print 'Exception %s' % msg
-            
+    
+    # Join all client threads       
     for i in manager.clients:
         i.stop()
         i.join()        
         manager.remove_client(i.username)
         print "The client %s closed its connection" % str(client_address)
+    
+    # Close server socket
     s.close()
     print 'Closed the server socket'
     print 'Terminating ...'
