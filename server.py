@@ -30,7 +30,7 @@ class Manager():
         self.ServerUsernames = [] 
         print "Created manager"
     
-    def notify_scores(self, game):
+    def notify_score(self, game):
         """ Notify all users in the same game about the scores"""
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
@@ -49,8 +49,10 @@ class Manager():
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_GAME_OVER, {'winner': game.get_scores()[0][0]})
+                del self.ServerGames[game.get_uuid()]  
         print "Game over, game uuid: %s" % game.get_uuid()
-                 
+        
+            
     def remove_client(self, username):
         """Remove client from game"""
         for i in range(0, len(self.clients)):
@@ -64,7 +66,7 @@ class Manager():
                 write_package(i.socket, PKG_SESSION_STARTED, {})
                 write_package(i.socket, PKG_SUDOKU_STATE, \
                         {'sudoku': game.get_sudoku().serialize()})
-        print "Game statrting, game uuid: %s" % game.get_uuid()
+        print "Game starting, game uuid: %s" % game.get_uuid()
              
 class Game():
     """Represents the sudoku game on the server side.
@@ -123,8 +125,10 @@ class Game():
     def leave_game(self, username):
         """Used to leave the game, returns True if only 1 player left"""
         del self.__users[username]
+        if len(self.__users) < 1:
+            del manager.ServerGames[self.get_uuid()]
         return self.get_cur_num_players() == 1
-
+        
     def get_game_name(self):
         """Returns the given name for a game"""  
         return self.__game_name
@@ -242,8 +246,9 @@ class ClientThread(threading.Thread):
             self.socket.close()
         
         except Exception, msg:
-            self.game.remove_client(self.username)
-            print "Exception: %s" % msg
+            self.socket.close()
+            manager.remove_client(self.username)
+            print "Client disconnected %s" % msg
     
     def stop(self):
         """Check if thread has to stop"""
