@@ -205,16 +205,20 @@ class NetworkThread(QtCore.QThread):
                 while stream.available():
                     # read package
                     pkg_type, data = protocol.read_package(stream)
-                    print "Received: %d, %s" % (pkg_type, data)
+                    
 
                     # depending on the package type, fire associated signal
                     if pkg_type == protocol.PKG_HELLO_ACK:
+                        print "Received: PKG_HELLO_ACK, %s" % data
                         self.usernameAck.emit(data["ok"])
                     if pkg_type == protocol.PKG_SESSIONS:
+                        print "Received: PKG_SESSIONS, %s" % data
                         self.sessionsReceived.emit(data["sessions"])
                     if pkg_type == protocol.PKG_SESSION_JOINED:
+                        print "Received: PKG_SESSION_JOINED, %s" % data
                         self.sessionJoined.emit(data["ok"], data["uuid"])
                     if pkg_type == protocol.PKG_SESSION_STARTED:
+                        print "Received: PKG_SESSION_STARTED, %s" % data
                         self.sessionStarted.emit()
                     if pkg_type == protocol.PKG_SUDOKU_STATE:
                         # sudoku state arrives as flattened array with 89 ints
@@ -222,12 +226,16 @@ class NetworkThread(QtCore.QThread):
                         sudoku = []
                         for i in range(9):
                             sudoku.append(data["sudoku"][(i*9):(i*9+9)])
+                        print "Received: PKG_SUDOKU_STATE, %s" % data
                         self.sudokuReceived.emit(sudoku)
                     if pkg_type == protocol.PKG_SCORES_STATE:
+                        print "Received: PKG_SCORES_STATE, %s" % data
                         self.scoresReceived.emit(data["scores"])
                     if pkg_type == protocol.PKG_SUGGEST_NUMBER_ACK:
+                        print "Received: PKG_SUGGEST_NUMBER_ACK, %s" % data
                         self.suggestNumberAck.emit(data["i"], data["j"], data["ok"])
                     if pkg_type == protocol.PKG_GAME_OVER:
+                        print "Received: PKG_GAME_OVER, %s" % data
                         self.gameOver.emit(data["winner"])
 
                 # then send packages to server that are in queue
