@@ -18,6 +18,7 @@ from protocol import *                                      # Import our own pro
 from sudoku import *                                        # Import our own sudoku class
 from socket import AF_INET, SOCK_STREAM, SHUT_WR, socket    # Used for TCP networking
 from argparse import ArgumentParser                         # Parsing command line arguments
+import traceback
 
 class Manager():
     """Contains the global variables for the server,
@@ -245,6 +246,7 @@ class ClientThread(threading.Thread):
             self.socket.shutdown(SHUT_WR)
             self.socket.close()
         except Exception, msg:
+            traceback.print_exc()
             self.socket.close()
             manager.remove_client(self.username)
             print "Client disconnected"
