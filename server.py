@@ -282,7 +282,6 @@ if __name__ == '__main__':
     for i in manager.clients:
         i.stop()
         i.join()        
-        manager.remove_client(i.username)
         print "The client %s closed its connection" % str(client_address)
     
     # Close server socket
