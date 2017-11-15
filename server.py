@@ -50,7 +50,8 @@ class Manager():
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_GAME_OVER, {'winner': game.get_scores()[0][0]})
-                del self.ServerGames[game.get_uuid()]  
+                if game.get_uuid() in self.ServerGames:
+                    del self.ServerGames[game.get_uuid()]  
         print "Game over, game uuid: %s" % game.get_uuid()
         
             
