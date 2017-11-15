@@ -62,6 +62,8 @@ class Manager():
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_SESSION_STARTED, {})
+                write_package(i.socket, PKG_SUDOKU_STATE, \
+                        {'sudoku': game.get_sudoku().serialize()})
         print "Game statrting, game uuid: %s" % game.get_uuid()
              
 class Game():
@@ -194,8 +196,9 @@ class ClientThread(threading.Thread):
                         if self.game.is_full():
                             manager.start_game(self.game) 
                                       
-                        write_package(self.socket, PKG_SUDOKU_STATE, \
-                                      {'sudoku': self.game.get_sudoku().serialize()})
+                        #write_package(self.socket, PKG_SUDOKU_STATE, \
+                        #              {'sudoku': self.game.get_sudoku().serialize()})
+                        write_package(self.socket, PKG_SCORES_STATE, {'scores': self.game.get_scores()})      
                         manager.notify_score(self.game)      
                         
                 # Create new session   
@@ -207,8 +210,8 @@ class ClientThread(threading.Thread):
                                   {'ok' : True, 'uuid' : self.game.get_uuid()})
                     if self.game.is_full():
                         manager.start_game(self.game)                       
-                    write_package(self.socket, PKG_SUDOKU_STATE, \
-                                  {'sudoku': self.game.get_sudoku().serialize()})
+                    #write_package(self.socket, PKG_SUDOKU_STATE, \
+                    #              {'sudoku': self.game.get_sudoku().serialize()})
                     write_package(self.socket, PKG_SCORES_STATE, {'scores': self.game.get_scores()})
                     
                     
