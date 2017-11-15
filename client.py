@@ -311,7 +311,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.table.setItem(i, j, item)
         self.table.setItemDelegate(SudokuItemDelegate())
         self.table.resizeColumnsToContents()
-        self.table.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        #self.table.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
         # call function self.doSuggestNumber when a cell of the sudoku table is edited by the user
         self.table.cellChanged.connect(self.doSuggestNumber)
  
