@@ -58,7 +58,7 @@ class Manager():
         for i in range(0, len(self.clients)):
             if self.clients[i].username == username:
                 del self.clients[i]
-    
+                self.ServerUsernames.remove(username)
     def start_game(self, game):
         """Send the start packet, used when game is full of players"""
         for i in self.clients:
@@ -244,11 +244,10 @@ class ClientThread(threading.Thread):
             
             self.socket.shutdown(SHUT_WR)
             self.socket.close()
-        
         except Exception, msg:
             self.socket.close()
             manager.remove_client(self.username)
-            print "Client disconnected %s" % msg
+            print "Client disconnected"
     
     def stop(self):
         """Check if thread has to stop"""
