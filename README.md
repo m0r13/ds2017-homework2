@@ -34,7 +34,10 @@ python client.py
 Use Cases:
 
 * Open Application
-* Dialog: Enter server address
+* Dialog: Enter server address:
+
+![Connect](/pictures/connect.png)
+
   * OK: Connect to server
   * Cancel: Terminate application.
 * If connection to server fails: Show error, go back to enter server address
