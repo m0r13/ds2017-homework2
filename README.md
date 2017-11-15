@@ -40,10 +40,21 @@ Use Cases:
 
   * OK: Connect to server
   * Cancel: Terminate application.
-* If connection to server fails: Show error, go back to enter server address
-* Once connected: Dialog: Enter username
-  * OK: Application checks if username is valid (8 characters at most, no spaces)
-  * Cancel or invalid username: Show error, valid username must be inserted, back to enter username
+* If connection to server fails: Show error, go back to enter server address:
+
+![Error](/pictures/wrongIP1.png)
+
+![Error2](/pictures/wrongIP2error.png)
+
+* Once connected: Dialog: Enter username:
+
+![Username](/pictures/choosename.png)
+
+  * OK: Application checks if username is valid (8 characters at most, no spaces):
+  
+  
+  * Cancel or invalid username: Show error, valid username must be inserted, back to enter username:
+  
 * Username is sent to server. Server checks if not in use already
   * If in use already: Server sends error message, user has to enter new username
 * Lobby dialog: Running sessions are shown to the user (with name, current players, max players)
