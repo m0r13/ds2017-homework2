@@ -518,7 +518,6 @@ class MainWindow(QtGui.QMainWindow):
 
     def doDisconnect(self):
         """Is called when the user requests to disconnect from the server."""
-        # TODO state
         self.disableGame()
         self.leaveSessionButton.setEnabled(False)
         # tell server connection to disconnect
