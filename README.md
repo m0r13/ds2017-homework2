@@ -77,7 +77,10 @@ Use Cases:
        ![Creat Session](/pictures/createsession.png)
 
 * User can join existing session
-  * If session is already full, server sends an error message and UI is back at lobby dialog
+  * If session is already full, server sends an error message and UI is back at lobby dialog:
+  
+       ![Session Full](/pictures/sessionfull.png)
+
 * When a session is joined
   * Client waits for other players and start signal of server (until then, scoreboard fills with joining players, but sudoku is visible yet). Special case when the max player count for a game is one: Start immediately, don't finish game when there is only one player left
 * When session is started:
@@ -90,9 +93,18 @@ Use Cases:
      
      ![Incorrect Input](/pictures/incorrectinput.png)
 
-  * Once all fields are filled / all players except one has left, the winner is announced by the server
+  * Once all fields are filled / all players except one has left, the winner is announced by the server:
+     
+     ![Game Over](/pictures/gameover.png)
+
 * Back to lobby dialog then
 
-* User can, in the session, leave the session with the button "leave session"
+* User can, in the session, leave the session with the button "leave session":
+
+     ![Leaving Bottom](/pictures/gamestarted.png)
+
 * User can, once connected to the server, disconnect from the server with the button "disconnect from server"
 * If the server connection fails anywhere in-between, back to dialog where server address is entered
+
+     ![Noconnection](/pictures/connect.png)
+
