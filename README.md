@@ -66,18 +66,30 @@ Use Cases:
 
 * Lobby dialog: Running sessions are shown to the user (with name, current players, max players):
 
-     ![Name Taken](/pictures/joiningsession.png)
+     ![Joining Session](/pictures/joiningsession.png)
 
 * If the lobby dialog is closed by the user, the UI offers the user to disconnect from the server
 * User can reload sessions
 * User can create session
-  * Another dialog opens, session name / max players must be entered
+
+  * Another dialog opens, session name / max players must be entered:
+  
+       ![Creat Session](/pictures/createsession.png)
+
 * User can join existing session
   * If session is already full, server sends an error message and UI is back at lobby dialog
-* When a session is joined:
+* When a session is joined
   * Client waits for other players and start signal of server (until then, scoreboard fills with joining players, but sudoku is visible yet). Special case when the max player count for a game is one: Start immediately, don't finish game when there is only one player left
 * When session is started:
-  * Number can be suggested by double-clicking a sudoku field and entering a number. Server acknowledges and UI highlights the cell green / red, scoreboard updates
+
+     ![Game Started](/pictures/gamestarted.png)
+
+  * Number can be suggested by double-clicking a sudoku field and entering a number. Server acknowledges and UI highlights the cell green / red, scoreboard updates:
+  
+     ![Correct Input](/pictures/correctinput.png)
+     
+     ![Incorrect Input](/pictures/incorrectinput.png)
+
   * Once all fields are filled / all players except one has left, the winner is announced by the server
 * Back to lobby dialog then
 
