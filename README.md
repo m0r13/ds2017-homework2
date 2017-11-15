@@ -52,12 +52,22 @@ Use Cases:
 
   * OK: Application checks if username is valid (8 characters at most, no spaces):
   
-  
+  ![Invalid User Name](/pictures/invalidname.png)
+ 
   * Cancel or invalid username: Show error, valid username must be inserted, back to enter username:
   
+    ![Invalid Name Error](/pictures/invalidnameerror.png)
+  
 * Username is sent to server. Server checks if not in use already
-  * If in use already: Server sends error message, user has to enter new username
-* Lobby dialog: Running sessions are shown to the user (with name, current players, max players)
+
+  * If in use already: Server sends error message, user has to enter new username:
+  
+      ![Name Taken](/pictures/nametaken.png)
+
+* Lobby dialog: Running sessions are shown to the user (with name, current players, max players):
+
+     ![Name Taken](/pictures/joiningsession.png)
+
 * If the lobby dialog is closed by the user, the UI offers the user to disconnect from the server
 * User can reload sessions
 * User can create session
