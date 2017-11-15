@@ -56,7 +56,7 @@ class Manager():
         for i in self.clients:
             if game.get_uuid() == i.game.get_uuid():
                 write_package(i.socket, PKG_SESSION_STARTED, {})
-        print "Game over, game uuid: %s" % game.get_uuid()
+        print "Game statrting, game uuid: %s" % game.get_uuid()
              
 class Game():
     """Represents the sudoku game on the server side.
@@ -219,14 +219,15 @@ class ClientThread(threading.Thread):
                     manager.notify(self.game)
                     print "%s wrote %d in position (%d, %d) in the Sudoku with game uuid %s" % \
                           (self.username, data['number'], data['i'], data['j'], self.game.get_uuid())
-                          
+                    if finish:
+                        manager.game_over(self.game)      
                 # Player wants to leave
                 elif pkg_type == PKG_LEAVE_SESSION:
                     print "Received PKG_LEAVE_SESSION"
                     finish = self.game.leave_game(self.username)
 
-                if finish:
-                    manager.game_over(self.game)
+                    if finish:
+                        manager.game_over(self.game)
 
             self.socket.shutdown(SHUT_WR)
             self.socket.close()
