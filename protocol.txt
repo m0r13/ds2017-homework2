@@ -1,21 +1,24 @@
-Client -> <- Server
+On server 
 
-Connection:
--> hello (username)
-<- hello_ack(ok)
+Class Communication:
 
-Get list of sessions:
--> get_sessions()
-<- sessions(sessions : [(uuid, name, cur_num_players, max_num_players), ...])
+"Used by a client to connect to a server"
+connect(username):
+return ok : bool
 
-Join existing session:
--> join_session(uuid)
-<- session_joined(ok, uuid)
+"Used by a client to get list of sessions"
+get_sessions()
+return sessions : [(uuid, name, cur_num_players, max_num_players), ...]
+
+"Used by a client to join a sessions"
+join_session(uuid)
+return ok : bool, uuid : string
 
 OR
-Create new session:
--> create_session(name, num_players)
-<- session_joined(ok, uuid)
+"Used by a client to create a sessions"
+create_session(name, num_players)
+return ok : bool, uuid : string
+
 if game is full:
     <- session_started()
 
@@ -35,8 +38,8 @@ Another player has suggested a number:
 <- sudoku_state(sudoku : [i_1, i_2, ..., i_81])
 <- scores_state(scores : [(player_name, points), ...])
 
-Player wants to leave:
--> leave_session()
+"Used by a client to leave a session"
+leave_session(uuid)
 
 All players have left except one / sudoku is finished:
 <- game_over(winner)
