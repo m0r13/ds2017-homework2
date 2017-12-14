@@ -344,7 +344,7 @@ class PyroNetworkThread(QtCore.QThread):
             callback = ClientCallback(self)
             daemon.register(callback)
 
-            with Pyro4.core.Proxy("PYRO:sudoku@%d:%s" % (self.host, self.port)) as server:
+            with Pyro4.core.Proxy("PYRO:sudoku@%s:%s" % (self.host, self.port)) as server:
                 def requestLoop():
                     print("Client daemon listening")
                     daemon.requestLoop(loopCondition=lambda a=self: a.stop)
@@ -352,27 +352,29 @@ class PyroNetworkThread(QtCore.QThread):
                 threading.Thread(target=requestLoop).start()
 
                 self.connected.emit()
+                server.provideSessionCallback(callback)
 
-                while not self.action_queue.empty():
-                    methodname, args = self.action_queue.get()
-                    try:
-                        method = getattr(server, methodname)
-                        returnvalue = method(*args)
-                        handlers = {
-                            "listSessions": lambda sessions, self=self: self.sessionsReceived.emit(sessions),
-                            "setUsername": lambda ok, self=self: self.usernameAck.emit(ok),
-                            "createSession": lambda _, self=self: self.sessionJoined.emit(True, "OK"),
-                            "joinSession": lambda ok, self=self: self.sessionJoined.emit(ok, "Server is full" if not ok else "OK"),
-                            "suggestNumber": lambda ok, self=self: self.suggestNumberAck.emit(ok),
-                        }
-                        if methodname in handlers:
-                            handlers[methodname](returnvalue)
-                    except AttributeError:
-                        self.stop = True
-                        raise Exception("Unknown server method '%s'" % methodname)
-                if self.stop:
-                    break
-                time.sleep(0.01)
+                while not self.stop:
+                    while not self.action_queue.empty():
+                        methodname, args = self.action_queue.get()
+                        try:
+                            method = getattr(server, methodname)
+                            returnvalue = method(*args)
+                            handlers = {
+                                "listSessions": lambda sessions, self=self: self.sessionsReceived.emit(sessions),
+                                "setUsername": lambda ok, self=self: self.usernameAck.emit(ok),
+                                "createSession": lambda _, self=self: self.sessionJoined.emit(True, "OK"),
+                                "joinSession": lambda ok, self=self: self.sessionJoined.emit(ok, "Server is full" if not ok else "OK"),
+                                "suggestNumber": lambda ok, self=self: self.suggestNumberAck.emit(ok),
+                            }
+                            if methodname in handlers:
+                                handlers[methodname](returnvalue)
+                        except AttributeError:
+                            self.stop = True
+                            raise Exception("Unknown server method '%s'" % methodname)
+                    if self.stop:
+                        break
+                    time.sleep(0.01)
 
             self.disconnected.emit("It's over")
 
@@ -386,27 +388,27 @@ class PyroNetworkThread(QtCore.QThread):
 
     def setUsername(self, username):
         #self.package_queue.put((protocol.PKG_HELLO, {"username" : username}))
-        self.action_queue.put(("setUsername", (username,))
+        self.action_queue.put(("setUsername", (username,)))
 
     def requestSessions(self):
         #self.package_queue.put((protocol.PKG_GET_SESSIONS, {}))
-        self.action_queue.put(("listSessions", tuple())
+        self.action_queue.put(("listSessions", tuple()))
 
     def joinSession(self, ident):
         #self.package_queue.put((protocol.PKG_JOIN_SESSION, {"uuid" : ident}))
-        self.action_queue.put(("joinSession", (ident,))
+        self.action_queue.put(("joinSession", (ident,)))
 
     def createSession(self, name, numPlayers):
         #self.package_queue.put((protocol.PKG_CREATE_SESSION, {"name" : name, "num_players" : numPlayers}))
-        self.action_queue.put("createSession", (name, numPlayers))
+        self.action_queue.put(("createSession", (name, numPlayers)))
 
     def suggestNumber(self, i, j, number):
         #self.package_queue.put((protocol.PKG_SUGGEST_NUMBER, {"i" : i, "j" : j, "number" : number}))
-        self.action_queue.put("suggestNumber", (i, j, number))
+        self.action_queue.put(("suggestNumber", (i, j, number)))
 
     def leaveSession(self):
         #self.package_queue.put((protocol.PKG_LEAVE_SESSION, {}))
-        self.action_queue.put("leaveSession", tuple())
+        self.action_queue.put(("leaveSession", tuple()))
 
 class MainWindow(QtGui.QMainWindow):
     """Main sudoku game window."""
