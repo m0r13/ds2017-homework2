@@ -10,6 +10,7 @@ import protocol
 import Queue
 import signal
 import util
+import Pyro4
 from PyQt4 import QtGui, QtCore
 
 class SudokuItemDelegate(QtGui.QItemDelegate):
@@ -282,6 +283,131 @@ class NetworkThread(QtCore.QThread):
     def leaveSession(self):
         self.package_queue.put((protocol.PKG_LEAVE_SESSION, {}))
 
+class ClientCallback(object):
+    def __init__(self, connection):
+        self.connection = connection
+
+    @Pyro4.expose
+    @Pyro4.oneway
+    def sessionStarted(self):
+        self.connection.sessionStarted.emit()
+
+    @Pyro4.expose
+    @Pyro4.oneway
+    def sudokuChanged(self, sudoku):
+        self.connection.sudokuReceived.emit(sudoku)
+
+    @Pyro4.expose
+    @Pyro4.oneway
+    def scoresChanged(self, scores):
+        self.connection.scoresReceived.emit(scores)
+
+    @Pyro4.expose
+    @Pyro4.oneway
+    def gameOver(self, winner):
+        self.connection.gameOver.emit(winner)
+
+class PyroNetworkThread(QtCore.QThread):
+    """Class that runs as thread and manages the connection to the sudoku server"""
+
+    # Qt signals that can one can subscribe to
+    # and that show the arrival of different packages from the server
+    # arguments are the fields of associated protocol packages
+
+    connected = QtCore.pyqtSignal()
+    disconnected = QtCore.pyqtSignal(str)
+    usernameAck = QtCore.pyqtSignal(bool)
+
+    sessionsReceived = QtCore.pyqtSignal(object)
+
+    sessionJoined = QtCore.pyqtSignal(bool, str)
+    sessionStarted = QtCore.pyqtSignal()
+    sudokuReceived = QtCore.pyqtSignal(object)
+    scoresReceived = QtCore.pyqtSignal(object)
+
+    suggestNumberAck = QtCore.pyqtSignal(int, int, bool)
+    gameOver = QtCore.pyqtSignal(str)
+
+    def __init__(self, host, port, *args, **kwargs):
+        super(QtCore.QThread, self).__init__(*args, **kwargs)
+
+        self.host = host
+        self.port = port
+        self.socket = None
+        self.action_queue = Queue.Queue()
+        self.stop = False
+        self.username = ""
+
+    def run(self):
+        """Mainloop of server connection."""
+        with Pyro4.Daemon() as daemon:
+            callback = ClientCallback(self)
+            daemon.register(callback)
+
+            with Pyro4.core.Proxy("PYRO:sudoku@%d:%s" % (self.host, self.port)) as server:
+                def requestLoop():
+                    print("Client daemon listening")
+                    daemon.requestLoop(loopCondition=lambda a=self: a.stop)
+                    print("Client daemon done")
+                threading.Thread(target=requestLoop).start()
+
+                self.connected.emit()
+
+                while not self.action_queue.empty():
+                    methodname, args = self.action_queue.get()
+                    try:
+                        method = getattr(server, methodname)
+                        returnvalue = method(*args)
+                        handlers = {
+                            "listSessions": lambda sessions, self=self: self.sessionsReceived.emit(sessions),
+                            "setUsername": lambda ok, self=self: self.usernameAck.emit(ok),
+                            "createSession": lambda _, self=self: self.sessionJoined.emit(True, "OK"),
+                            "joinSession": lambda ok, self=self: self.sessionJoined.emit(ok, "Server is full" if not ok else "OK"),
+                            "suggestNumber": lambda ok, self=self: self.suggestNumberAck.emit(ok),
+                        }
+                        if methodname in handlers:
+                            handlers[methodname](returnvalue)
+                    except AttributeError:
+                        self.stop = True
+                        raise Exception("Unknown server method '%s'" % methodname)
+                if self.stop:
+                    break
+                time.sleep(0.01)
+
+            self.disconnected.emit("It's over")
+
+    """Following functions are actions that the client can perform on the server.
+    To send package data over the socket to the server in the server-connection thread,
+    packages beloging to specific actions are put into a queue by the ui thread which
+    are then sent by the server-connection thread."""
+
+    def disconnect(self):
+        self.stop = True
+
+    def setUsername(self, username):
+        #self.package_queue.put((protocol.PKG_HELLO, {"username" : username}))
+        self.action_queue.put(("setUsername", (username,))
+
+    def requestSessions(self):
+        #self.package_queue.put((protocol.PKG_GET_SESSIONS, {}))
+        self.action_queue.put(("listSessions", tuple())
+
+    def joinSession(self, ident):
+        #self.package_queue.put((protocol.PKG_JOIN_SESSION, {"uuid" : ident}))
+        self.action_queue.put(("joinSession", (ident,))
+
+    def createSession(self, name, numPlayers):
+        #self.package_queue.put((protocol.PKG_CREATE_SESSION, {"name" : name, "num_players" : numPlayers}))
+        self.action_queue.put("createSession", (name, numPlayers))
+
+    def suggestNumber(self, i, j, number):
+        #self.package_queue.put((protocol.PKG_SUGGEST_NUMBER, {"i" : i, "j" : j, "number" : number}))
+        self.action_queue.put("suggestNumber", (i, j, number))
+
+    def leaveSession(self):
+        #self.package_queue.put((protocol.PKG_LEAVE_SESSION, {}))
+        self.action_queue.put("leaveSession", tuple())
+
 class MainWindow(QtGui.QMainWindow):
     """Main sudoku game window."""
 
@@ -356,7 +482,7 @@ class MainWindow(QtGui.QMainWindow):
         assert self.connection is None
         # create thread that handles connection to server
         # connect signals of thread to ui methods handling them
-        self.connection = NetworkThread(host, port)
+        self.connection = PyroNetworkThread(host, port)
         self.connection.connected.connect(self.onConnected)
         self.connection.disconnected.connect(self.onDisconnected)
         self.connection.usernameAck.connect(self.onUsernameAck)
