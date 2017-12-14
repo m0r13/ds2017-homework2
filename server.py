@@ -136,11 +136,19 @@ class Game():
 class SudokuServer(object):
     def __init__(self):
         self.username = None
-        self.address = client_address
         self.game = None
 
     @Pyro4.expose
+    def setUsername(self, username):
+        if username in manager.ServerUsernames:
+            return False
+        else:
+            manager.ServerUsernames.append(username)
+            return True
+
+    @Pyro4.expose
     def listSessions(self):
+        result = ""
         for i in manager.ServerGames.keys():
             self.game = manager.ServerGames[i]
             result.append( \
