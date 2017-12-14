@@ -1,8 +1,23 @@
 #!/usr/bin/env python2
+# -*- coding: utf-8 -*-
 
-import time
-import threading
-import Pyro4
+"""
+usage: server.py [-h] [-v] [-H HOST] [-p PORT]
+
+Concurrent Sudoku
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -H HOST, --host HOST  Server TCP port, defaults to 127.0.0.1
+  -p PORT, --port PORT  Server TCP port, defaults to 8888
+"""
+
+import time, threading, uuid, util                          # Miscellaneous utils
+from protocol import *                                      # Import our own protocol class
+from sudoku import *                                        # Import our own sudoku class
+from argparse import ArgumentParser                         # Parsing command line arguments
+import traceback, Pyro4
 
 def get_id():
     peer = Pyro4.current_context.client_sock_addr
