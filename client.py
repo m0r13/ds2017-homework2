@@ -252,7 +252,7 @@ class NetworkThread(QtCore.QThread):
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
             self.disconnected.emit("Disconnected!")
-        except socket.error, e:
+        except Exception, e:
             # handle possible socket errors
             traceback.print_exc()
             self.disconnected.emit(str(e))
@@ -290,6 +290,7 @@ class ClientCallback(object):
     @Pyro4.expose
     @Pyro4.oneway
     def sessionStarted(self):
+        print("Callback: sessionStarted")
         self.connection.sessionStarted.emit()
 
     @Pyro4.expose
@@ -350,6 +351,7 @@ class PyroNetworkThread(QtCore.QThread):
                     daemon.requestLoop(loopCondition=lambda a=self: a.stop)
                     print("Client daemon done")
                 threading.Thread(target=requestLoop).start()
+                print(dir(server))
 
                 self.connected.emit()
                 server.provideSessionCallback(callback)
@@ -357,21 +359,32 @@ class PyroNetworkThread(QtCore.QThread):
                 while not self.stop:
                     while not self.action_queue.empty():
                         methodname, args = self.action_queue.get()
+                        print("Calling method %s(%s)" % (methodname, args))
+                        method = None
                         try:
                             method = getattr(server, methodname)
-                            returnvalue = method(*args)
-                            handlers = {
-                                "listSessions": lambda sessions, self=self: self.sessionsReceived.emit(sessions),
-                                "setUsername": lambda ok, self=self: self.usernameAck.emit(ok),
-                                "createSession": lambda _, self=self: self.sessionJoined.emit(True, "OK"),
-                                "joinSession": lambda ok, self=self: self.sessionJoined.emit(ok, "Server is full" if not ok else "OK"),
-                                "suggestNumber": lambda ok, self=self: self.suggestNumberAck.emit(ok),
-                            }
-                            if methodname in handlers:
-                                handlers[methodname](returnvalue)
-                        except AttributeError:
+                        except AttributeError, e:
+                            traceback.print_exc()
                             self.stop = True
                             raise Exception("Unknown server method '%s'" % methodname)
+                        returnvalue = None
+                        try:
+                            returnvalue = method(*args)
+                        except Exception, e:
+                            traceback.print_exc()
+                            self.stop = True
+                            print("".join(Pyro4.util.getPyroTraceback()))
+                            raise e
+
+                        handlers = {
+                            "listSessions": lambda sessions, self=self: self.sessionsReceived.emit(sessions),
+                            "setUsername": lambda ok, self=self: self.usernameAck.emit(ok),
+                            "createSession": lambda _, self=self: self.sessionJoined.emit(True, "OK"),
+                            "joinSession": lambda ok, self=self: self.sessionJoined.emit(ok, "Server is full" if not ok else "OK"),
+                            "suggestNumber": lambda ok, self=self: self.suggestNumberAck.emit(ok),
+                        }
+                        if methodname in handlers:
+                            handlers[methodname](returnvalue)
                     if self.stop:
                         break
                     time.sleep(0.01)

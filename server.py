@@ -24,6 +24,8 @@ def get_id():
     ip = Pyro4.socketutil.getIpAddress(peer[0], workaround127=True)
     return "%s:%d" % (ip, peer[1])
 
+manager = None
+
 class Manager():
     """Contains the global variables for the server,
     acts as manager and is passed to all Threads"""
@@ -37,20 +39,20 @@ class Manager():
 
     def notify_score(self, game):
         """ Notify all users in the same game about the scores"""
-        for i in self.game.users.keys():
-            client_callbacks[i].scoresChanged(game.get_scores())
+        for i in game.users.keys():
+            self.client_callbacks[i].scoresChanged(game.get_scores())
 
     def notify(self, game):
         """ Notify all users in the same game about the changes in the sudoku"""
-        for i in self.game.users.keys():
-            client_callbacks[i].sudokuChanged(game.get_sudoku().serialize())
-            client_callbacks[i].scoresChanged(game.get_scores())
+        for i in game.users.keys():
+            self.client_callbacks[i].sudokuChanged(game.get_sudoku().serialize())
+            self.client_callbacks[i].scoresChanged(game.get_scores())
 
     def game_over(self, game):
         """ Notify all users in the same game when game is over"""
 
-        for i in self.game.users.keys():
-            client_callbacks[i].gameOver(game.get_scores()[0][0])
+        for i in game.users.keys():
+            self.client_callbacks[i].gameOver(game.get_scores()[0][0])
         self.ServerGames.remove(game.get_uuid())
         print "Game over, game uuid: %s" % game.get_uuid()
 
@@ -62,8 +64,8 @@ class Manager():
 
     def start_game(self, game):
         """Send the start packet, used when game is full of players"""
-        for i in self.game.users.keys():
-            client_callbacks[i].sessionStarted()
+        for i in game.users.keys():
+            self.client_callbacks[i].sessionStarted()
         print "Game starting, game uuid: %s" % game.get_uuid()
 
 
@@ -140,6 +142,7 @@ class SudokuServer(object):
 
     @Pyro4.expose
     def setUsername(self, username):
+        print("Pyro SudokuServer.setUsername")
         if username in manager.ServerUsernames:
             return False
         else:
@@ -148,6 +151,7 @@ class SudokuServer(object):
 
     @Pyro4.expose
     def listSessions(self):
+        print("Pyro SudokuServer.listSessions")
         result = ""
         for i in manager.ServerGames.keys():
             self.game = manager.ServerGames[i]
@@ -158,6 +162,7 @@ class SudokuServer(object):
 
     @Pyro4.expose
     def createSession(self, name, num_players):
+        print("Pyro SudokuServer.createSession")
         self.game = Game(name, num_players, self.username)
         manager.ServerGames[self.game.get_uuid()] = self.game
         if self.game.is_full():
@@ -172,12 +177,10 @@ class SudokuServer(object):
         else:
             self.game = session
             self.game.join(self.username)
-            return True
-
             if self.game.is_full():
                 manager.start_game(self.game)
-
             manager.notify_score(self.game)
+            return True
 
     @Pyro4.expose
     def provideSessionCallback(self, callback):
@@ -191,11 +194,6 @@ class SudokuServer(object):
 
         print("Got client callback: %s" % callback)
         manager.client_callbacks[self.username] = callback
-        def answer(callback=callback):
-            callback.sessionStarted()
-            time.sleep(5)
-            callback.gameOver("You!")
-        threading.Thread(target=answer).start()
 
     @Pyro4.expose
     def suggestNumber(self, i, j, value):
