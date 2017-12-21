@@ -162,7 +162,7 @@ class SudokuServer(object):
         manager.ServerGames[self.game.get_uuid()] = self.game
         if self.game.is_full():
             manager.start_game(self.game)
-        return True
+        return 
 
     @Pyro4.expose
     def joinSession(self, session):
