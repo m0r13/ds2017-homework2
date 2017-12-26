@@ -58,10 +58,11 @@ class Sudoku():
         return self.__game_grid == self.__finished_grid
 
     def serialize(self):
-        serialized = []
-        for i in range(9):
-            serialized.extend(self.__game_grid[i])
-        return serialized
+        #serialized = []
+        #for i in range(9):
+        #    serialized.extend(self.__game_grid[i])
+        #return serialized
+        return self.__game_grid
     
     @staticmethod
     def get_random_sudoku():

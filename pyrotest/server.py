@@ -37,9 +37,12 @@ class SudokuServer(object):
 
         print("Got client callback: %s" % callback)
         def answer(callback=callback):
-            callback.sessionStarted()
-            time.sleep(5)
+            #callback.sessionStarted()
+            time.sleep(1)
+            print("Sending game over!")
             callback.gameOver("You!")
+            time.sleep(5)
+            callback.gameOver("Test")
         threading.Thread(target=answer).start()
 
     @Pyro4.expose
@@ -47,5 +50,5 @@ class SudokuServer(object):
         pass
 
 Pyro4.Daemon.serveSimple({
-    SudokuServer: "sudoku"
+    SudokuServer(): "sudoku"
 }, host="localhost", port=9999, ns=False)

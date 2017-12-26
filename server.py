@@ -138,6 +138,7 @@ class Game():
 class SudokuServer(object):
     def __init__(self):
         self.username = None
+        self.callback = None
         self.game = None
 
     @Pyro4.expose
@@ -146,13 +147,15 @@ class SudokuServer(object):
         if username in manager.ServerUsernames:
             return False
         else:
+            self.username = username
+            manager.client_callbacks[self.username] = self.callback
             manager.ServerUsernames.append(username)
             return True
 
     @Pyro4.expose
     def listSessions(self):
         print("Pyro SudokuServer.listSessions")
-        result = ""
+        result = []
         for i in manager.ServerGames.keys():
             self.game = manager.ServerGames[i]
             result.append( \
@@ -167,19 +170,27 @@ class SudokuServer(object):
         manager.ServerGames[self.game.get_uuid()] = self.game
         if self.game.is_full():
             manager.start_game(self.game)
+            manager.notify(self.game)
+        else:
+            manager.notify_score(self.game)
         return 
 
     @Pyro4.expose
     def joinSession(self, session):
-        if session not in manager.ServerGames \
-        or session.is_full():
+        if session not in manager.ServerGames:
+            return False
+
+        game = manager.ServerGames[session]
+        if game.is_full():
             return False
         else:
-            self.game = session
+            self.game = game
             self.game.join(self.username)
             if self.game.is_full():
                 manager.start_game(self.game)
-            manager.notify_score(self.game)
+                manager.notify(self.game)
+            else:
+                manager.notify_score(self.game)
             return True
 
     @Pyro4.expose
@@ -192,8 +203,8 @@ class SudokuServer(object):
         # smth like
         # self.client_callbacks[get_id()] = callback
 
+        self.callback = callback
         print("Got client callback: %s" % callback)
-        manager.client_callbacks[self.username] = callback
 
     @Pyro4.expose
     def suggestNumber(self, i, j, value):
@@ -205,7 +216,7 @@ class SudokuServer(object):
               (self.username, value, i, j, self.game.get_uuid())
         if finish:
             manager.game_over(self.game)
-        return point
+        return i, j, point
 
     @Pyro4.expose
     def leaveSession(self):

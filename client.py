@@ -133,6 +133,7 @@ class LobbyDialog(QtGui.QDialog):
         if dialog.result():
             # when dialog input successful: create session on server
             # dialog.data is tuple (session name, number of players) which are also arguments of createSession function
+            print("Dialog createSession")
             self.connection.createSession(*dialog.data)
 
     def onConnect(self, _ = None):
@@ -149,6 +150,7 @@ class LobbyDialog(QtGui.QDialog):
         self.connection.joinSession(ident)
 
     def onSessionJoined(self, joined, ident):
+        print("Dialog: onSessionJoined")
         """Is called when response from server after joining-session request arrived."""
         # close the dialog if joining session was successful
         # show error if session is already full
@@ -348,7 +350,8 @@ class PyroNetworkThread(QtCore.QThread):
             with Pyro4.core.Proxy("PYRO:sudoku@%s:%s" % (self.host, self.port)) as server:
                 def requestLoop():
                     print("Client daemon listening")
-                    daemon.requestLoop(loopCondition=lambda a=self: a.stop)
+                    #daemon.requestLoop(loopCondition=lambda a=self: a.stop)
+                    daemon.requestLoop()
                     print("Client daemon done")
                 threading.Thread(target=requestLoop).start()
                 print(dir(server))
@@ -381,10 +384,14 @@ class PyroNetworkThread(QtCore.QThread):
                             "setUsername": lambda ok, self=self: self.usernameAck.emit(ok),
                             "createSession": lambda _, self=self: self.sessionJoined.emit(True, "OK"),
                             "joinSession": lambda ok, self=self: self.sessionJoined.emit(ok, "Server is full" if not ok else "OK"),
-                            "suggestNumber": lambda ok, self=self: self.suggestNumberAck.emit(ok),
+                            "suggestNumber": lambda i, j, point, self=self: self.suggestNumberAck.emit(i, j, point == 1),
                         }
                         if methodname in handlers:
-                            handlers[methodname](returnvalue)
+                            print("Method handler: %s %s" % (methodname, returnvalue))
+                            if type(returnvalue) == tuple:
+                                handlers[methodname](*returnvalue)
+                            else:
+                                handlers[methodname](returnvalue)
                     if self.stop:
                         break
                     time.sleep(0.01)

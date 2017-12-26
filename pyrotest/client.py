@@ -7,7 +7,7 @@ import Pyro4
 # We need to set either a socket communication timeout,
 # or use the select based server. Otherwise the daemon requestLoop
 # will block indefinitely and is never able to evaluate the loopCondition.
-Pyro4.config.COMMTIMEOUT = 0.5
+#Pyro4.config.COMMTIMEOUT = 0.5
 
 class SessionHandler(object):
 
@@ -24,6 +24,7 @@ class SessionHandler(object):
         pass
 
     @Pyro4.expose
+    #@Pyro4.oneway
     def gameOver(self, winner):
         print("handler: gameOver(winner='%s')" % winner)
 
