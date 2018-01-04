@@ -5,7 +5,12 @@ import struct
 # some constants
 SERVER_INET_ADDR = "127.0.0.1"
 SERVER_PORT = 8888
+MULTICAST_IP = "239.1.1.1"
+MULTICAST_PORT = 7778
 TCP_RECEIVE_BUFFER_SIZE = 1024
+MSG_FIELD_SEP = ";"
+MULTICAST_MSG = "SUDOKUSERVER"
+DEFAULT_RCV_BUFFSIZE = 1024
 
 # types of packages
 PKG_HELLO = 0
@@ -294,4 +299,3 @@ def write_package(stream, pkg_type, data):
     methods handle writing the package type id."""
     assert pkg_type in PACKAGES
     PACKAGES[pkg_type][0](stream, data)
-
