@@ -5,13 +5,17 @@ import random
 import time
 import threading
 import traceback
-import socket
 import protocol
 import Queue
 import signal
 import util
 import Pyro4
 from PyQt4 import QtGui, QtCore
+from threading import Thread
+from socket import AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SOL_IP
+from socket import IPPROTO_IP, IP_MULTICAST_LOOP, IP_MULTICAST_TTL
+from socket import inet_aton, IP_ADD_MEMBERSHIP, socket
+from socket import error as soc_err
 
 class SudokuItemDelegate(QtGui.QItemDelegate):
     """Helper class to style cells of 9x9 sudoku into 3x3 fields again."""
@@ -486,24 +490,23 @@ class MainWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(10, self.doConnect)
 
     def doConnect(self):
-        """Called at the start of application or when server connection is lost / disconnected."""
-        # request server address
-        address, ok = QtGui.QInputDialog.getText(self, "Server address", "Please enter the server address and port (host:port):", QtGui.QLineEdit.Normal, "localhost:8888")
-        # close application if cancel was pressed
-        if not ok:
-            self.close()
-            return
+        result = False
+        while not result:
+            dialog = ServerDialog(self)
+            dialog.show()
+            dialog.exec_()
+            addr = dialog.getServer().replace("(", "").replace(")", "").replace("'", "")
+            result = dialog.result()
         # validate address / port
-        address = str(address)
-        host, port = address, protocol.SERVER_PORT
-        if ":" in address:
-            host, port = address.split(":")
-            port = int(port)
+        address = addr.split(",")
+        host, port = str(address[0]), int(address[1])
 
         # there may be no server connection thread active at this point
         assert self.connection is None
         # create thread that handles connection to server
         # connect signals of thread to ui methods handling them
+
+        print "Connecting to: " + host + ":" + str(port)
         self.connection = PyroNetworkThread(host, port)
         self.connection.connected.connect(self.onConnected)
         self.connection.disconnected.connect(self.onDisconnected)
@@ -722,6 +725,142 @@ class MainWindow(QtGui.QMainWindow):
         self.setSudokuState([[0]*9] * 9)
         self.list.setEnabled(False)
         self.table.setEnabled(False)
+
+
+class ServerDialog(QtGui.QDialog):
+    """Custom dialog that is used to present running servers to user and choice to join/create one."""
+    def __init__(self, *args, **kwargs):
+        super(QtGui.QDialog, self).__init__(*args, **kwargs)
+
+        # connection to server
+        self.mcDiscovery = MulticastDiscovery('239.1.1.1', 7778)
+
+        # ui setup
+        self.setModal(True)
+
+        self.__server = ""
+
+        self.list = QtGui.QListWidget()
+        self.list.itemDoubleClicked.connect(self.onConnect)
+        self.reloadButton = QtGui.QPushButton("Reload servers")
+        self.reloadButton.clicked.connect(self.onReload)
+        self.connectButton = QtGui.QPushButton("Connect")
+        self.connectButton.clicked.connect(self.onConnect)
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.reloadButton)
+        layout.addWidget(self.list)
+        layout.addWidget(self.connectButton)
+        self.setLayout(layout)
+
+        # load list of servers in the beginning
+        self.onReload()
+
+    def onReload(self):
+        self.onServersReceived(self.mcDiscovery.getServers())
+
+    def onServersReceived(self, servers):
+        """Is called when list of sessions has arrived from server."""
+        # clear list of servers, load new list
+        self.list.clear()
+        for i in range(0, len(servers)):
+            item = QtGui.QListWidgetItem("%s" % (str(servers[i])))
+            item.setData(QtCore.Qt.UserRole, i)
+            self.list.addItem(item)
+
+    def getServer(self):
+        print "Selected server: " + str(self.__server)
+        self.mcDiscovery.stop()
+        return self.__server
+
+    def onConnect(self, _ = None):
+        """Is called when the connection button is pressed or an item
+        in the session list is double-clicked (unused argument _ is for that)."""
+        # get selection, make sure exactly one item is selected
+        selection = self.list.selectedItems()[0].text()
+        
+        self.__server = selection
+        self.accept()
+        
+    def onServerJoined(self, joined, ident):
+        print("Dialog: onServerJoined")
+        """Is called when response from server after joining-session request arrived."""
+        # close the dialog if joining session was successful
+        if not joined:
+            QtGui.QMessageBox.critical(self, "Connection failed", "Unable to join server!")
+            return
+        self.accept()
+
+class MulticastDiscovery(Thread):
+    def __init__(self,mcast_addr,mcast_port,\
+                 mcast_rcv_buffer_size=protocol.DEFAULT_RCV_BUFFSIZE):
+        Thread.__init__(self, name=self.__class__.__name__)
+
+        self.__servers = []
+        self.__rcv_bsize = mcast_rcv_buffer_size
+        # Declare UDP socket
+        self.__s = socket(AF_INET, SOCK_DGRAM)
+        print 'UDP socket declared ...'
+
+        self.__s.setsockopt(SOL_SOCKET,SO_REUSEADDR,1)
+        self.__s.setsockopt(IPPROTO_IP,IP_MULTICAST_LOOP,1)
+        self.__s.bind((mcast_addr,mcast_port))
+        self.__s.setsockopt(SOL_IP, IP_ADD_MEMBERSHIP, \
+            inet_aton(mcast_addr) + inet_aton('0.0.0.0'))
+        print 'Subscribed for multi-cast group %s:%d' % (mcast_addr,mcast_port)
+        self.recv = threading.Thread(target=self.receiver_loop, args=(), kwargs={})
+        self.recv.daemon = True
+        self.recv.start()
+
+    def getServers(self):
+        return self.__servers
+
+    def __protocol_rcv(self,msg,src):
+        if not msg.startswith(protocol.MULTICAST_MSG + protocol.MSG_FIELD_SEP):
+            print 'Unexpected multi-cast [%s]' % msg
+            return
+
+        peer_addr_from_msg = msg.split(protocol.MSG_FIELD_SEP)[1]
+        try:
+            peer_addr_from_msg = peer_addr_from_msg.split(':')
+            peer_addr_from_msg[1] = int(peer_addr_from_msg[1])
+            peer_addr_from_msg = tuple(peer_addr_from_msg)
+        except Exception as e:
+            print 'Can not parse payload [%s], error: %s' % (msg.split(protocol.MSG_FIELD_SEP)[1], str(e))
+            return
+        print 'Peer candidate address from request [%s:%d]' % peer_addr_from_msg
+        print 'Peer candidate address from socket [%s:%d]' % src
+
+
+        if peer_addr_from_msg != '0.0.0.0':
+            server = peer_addr_from_msg
+            return peer_addr_from_msg
+
+    def receiver_loop(self):
+        # Listen forever (Ctrl+C) to kill
+        try:
+            while 1:
+                message,addr = self.__s.recvfrom(self.__rcv_bsize)
+                print 'Received Multicast From: %s:%s [%s]' % (addr+(message,))
+                server = self.__protocol_rcv(message, addr)
+                if not server in self.__servers:
+                    self.__servers.append(server)
+                    print 'Added: ' + str(server)
+        except soc_err as e:
+            print 'Socket error: %s' % str(e)
+        except (KeyboardInterrupt, SystemExit):
+            print 'Ctrl+C issued, terminating ...'
+        finally:
+            self.__s.close()
+        print 'Terminating ...'
+
+    def run(self):
+        self.receiver_loop()
+
+    def stop(self):
+        self.__s.close()
+
+
 
 def sigint_handler(*args):
     sys.stderr.write("Got SIGINT, quitting...")
