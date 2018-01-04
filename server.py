@@ -11,18 +11,46 @@ optional arguments:
   -v, --version         show program's version number and exit
   -H HOST, --host HOST  Server TCP port, defaults to 127.0.0.1
   -p PORT, --port PORT  Server TCP port, defaults to 8888
+  -M MULTICAST_IP, --mcip MCIP  Multicast IP, defaults 239.1.1.1
+  -o MULTICAST_PORT, --mcport MCPORT  Multicast port, defaults to 7778
 """
 
 import time, threading, uuid, util                          # Miscellaneous utils
 from protocol import *                                      # Import our own protocol class
 from sudoku import *                                        # Import our own sudoku class
 from argparse import ArgumentParser                         # Parsing command line arguments
+from socket import AF_INET, SOCK_DGRAM, IPPROTO_IP, IP_MULTICAST_LOOP, IP_MULTICAST_TTL, socket
 import traceback, Pyro4
 
 def get_id():
     peer = Pyro4.current_context.client_sock_addr
     ip = Pyro4.socketutil.getIpAddress(peer[0], workaround127=True)
     return "%s:%d" % (ip, peer[1])
+
+
+def send_multicast(rpc_addr, mc_addr,ttl=1):
+    MSG = MULTICAST_MSG + MSG_FIELD_SEP + ('%s:%d' % rpc_addr)
+    try:
+        s = socket(AF_INET, SOCK_DGRAM)
+        print 'UDP socket declared'
+        s.setsockopt(IPPROTO_IP, IP_MULTICAST_LOOP, 1)
+        print 'Enabled loop-back multi-casts ...'
+
+        if s.getsockopt(IPPROTO_IP, IP_MULTICAST_TTL) != ttl:
+            s.setsockopt(IPPROTO_IP, IP_MULTICAST_TTL, ttl)
+            print 'Set multicast message to %d' % ttl
+
+        while True:
+            s.sendto(MSG, mc_addr)
+            print 'Multicast sent to [%s:%d]: %s' % (mc_addr + (MSG,))
+            time.sleep(5)
+
+        sock_addr = s.getsockname()
+        s.close()
+        print 'Closed multicast sending socket %s:%d' % sock_addr
+    except Exception as e:
+        print 'Can not send MC request: %s' % str(e)
+
 
 manager = None
 
@@ -236,10 +264,20 @@ if __name__ == '__main__':
                         default=SERVER_INET_ADDR)
     parser.add_argument('-p','--port', type=int, help='Server TCP port, '\
                         'defaults to %d' % SERVER_PORT, default=SERVER_PORT)
+    parser.add_argument('-M','--mcip', help='Multicast IP, '\
+                        'defaults to %s' % MULTICAST_IP, \
+                        default=MULTICAST_IP)
+    parser.add_argument('-o','--mcport', type=int, help='Multicast port, '\
+                        'defaults to %d' % MULTICAST_PORT, default=MULTICAST_PORT)
     args = parser.parse_args()
 
     # Create Manager
     manager = Manager()
+
+    # Send multicast
+    sender = threading.Thread(target=send_multicast, args=((args.host, args.port), (args.mcip, args.mcport)), kwargs={})
+    sender.daemon = True
+    sender.start()
 
     Pyro4.Daemon.serveSimple({
         SudokuServer: "sudoku"
