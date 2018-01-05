@@ -1,5 +1,5 @@
 # Project for Distributed system class 2017
-Implementation of a concurrent Sudoku solver
+Implementation of a concurrent Sudoku solver using remote procedure calls and multi-cast server discovery
 ## Students
 - Shahla Atapoor
 - Sander Mikelsaar
