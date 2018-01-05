@@ -34,17 +34,15 @@ python client.py
 Use Cases:
 
 * Open Application
-* Dialog: Enter server address:
+* Dialog: Server Discovery:
 
-![Connect](/pictures/connect.png)
+![Discovery](/pictures/emptydiscovery.png)
 
-  * OK: Connect to server
-  * Cancel: Terminate application.
-* If connection to server fails: Show error, go back to enter server address:
+  * Reload Servers: Reload list of multicast findings 
+  * Connect: Connect to selected server.
 
-![Error](/pictures/wrongIP1.png)
+![DiscoveryFull](/pictures/fulldiscovery.png)
 
-![Error2](/pictures/wrongIP2error.png)
 
 * Once connected: Dialog: Enter username:
 
